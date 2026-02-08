@@ -20,7 +20,55 @@
 engine.name = "BetterPulsar"
 
 local musicutil = require "musicutil"
-local lfo = require "lfo"
+
+-- Simple LFO implementation (self-contained, no external library needed)
+local SimpleLFO = {}
+SimpleLFO.__index = SimpleLFO
+
+function SimpleLFO:new(params)
+  local o = setmetatable({}, self)
+  o.period = params.period or 1
+  o.min = params.min or 0
+  o.max = params.max or 1
+  o.action = params.action or function() end
+  o.running = false
+  o.clock_id = nil
+  o.phase = 0
+  return o
+end
+
+function SimpleLFO:start()
+  if self.running then return end
+  self.running = true
+  self.clock_id = clock.run(function()
+    while self.running do
+      -- Sine wave: raw is 0-1, phase is 0-1
+      local raw = (math.sin(self.phase * 2 * math.pi) + 1) / 2
+      local scaled = self.min + raw * (self.max - self.min)
+      self.action(scaled, raw)
+      clock.sleep(1/30)  -- 30 Hz update rate
+      self.phase = (self.phase + (1/30) / self.period) % 1
+    end
+  end)
+end
+
+function SimpleLFO:stop()
+  self.running = false
+  if self.clock_id then
+    clock.cancel(self.clock_id)
+    self.clock_id = nil
+  end
+end
+
+function SimpleLFO:set(key, value)
+  if key == "period" then
+    self.period = value
+  elseif key == "min" then
+    self.min = value
+  elseif key == "max" then
+    self.max = value
+  end
+end
 
 -- State
 local current_note = nil
@@ -947,8 +995,7 @@ end
 -- LFO initialization
 function init_lfos()
   -- Formant LFO - modulates formant frequency
-  lfo_formant = lfo:add{
-    shape = "sine",
+  lfo_formant = SimpleLFO:new{
     min = 0,
     max = 1,
     period = 2,
@@ -962,8 +1009,7 @@ function init_lfos()
   }
 
   -- Duty cycle LFO
-  lfo_duty = lfo:add{
-    shape = "sine",
+  lfo_duty = SimpleLFO:new{
     min = 0,
     max = 1,
     period = 4,
@@ -976,8 +1022,7 @@ function init_lfos()
   }
 
   -- Masking LFO
-  lfo_masking = lfo:add{
-    shape = "sine",
+  lfo_masking = SimpleLFO:new{
     min = 0,
     max = 1,
     period = 10,
@@ -988,8 +1033,7 @@ function init_lfos()
   }
 
   -- Pan LFO
-  lfo_pan = lfo:add{
-    shape = "sine",
+  lfo_pan = SimpleLFO:new{
     min = -1,
     max = 1,
     period = 5,
