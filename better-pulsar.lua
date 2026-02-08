@@ -82,16 +82,24 @@ for i = 1, #musicutil.SCALES do
 end
 
 -- MIDI CC mappings (adjust to your controller)
+-- Default: CC 1-16 consecutively
 local CC = {
-  formant     = 1,   -- mod wheel
-  duty_cycle  = 2,   -- breath controller / CC2
-  amplitude   = 7,   -- volume
-  pan         = 10,  -- pan
-  masking     = 11,  -- expression
-  pulsaret    = 14,  -- undefined CC
-  window      = 15,  -- undefined CC
-  attack      = 73,  -- attack time
-  release     = 72   -- release time
+  formant     = 1,
+  duty_cycle  = 2,
+  amplitude   = 3,
+  pan         = 4,
+  masking     = 5,
+  pulsaret    = 6,
+  window      = 7,
+  attack      = 8,
+  release     = 9,
+  formant2    = 10,
+  formant3    = 11,
+  pan2        = 12,
+  pan3        = 13,
+  sample_rate = 14,
+  glide       = 15,
+  burst_on    = 16
 }
 
 function init()
@@ -262,6 +270,13 @@ function init()
   params:add_number("cc_window", "window cc", 0, 127, CC.window)
   params:add_number("cc_attack", "attack cc", 0, 127, CC.attack)
   params:add_number("cc_release", "release cc", 0, 127, CC.release)
+  params:add_number("cc_formant2", "formant 2 cc", 0, 127, CC.formant2)
+  params:add_number("cc_formant3", "formant 3 cc", 0, 127, CC.formant3)
+  params:add_number("cc_pan2", "pan 2 cc", 0, 127, CC.pan2)
+  params:add_number("cc_pan3", "pan 3 cc", 0, 127, CC.pan3)
+  params:add_number("cc_sample_rate", "sample rate cc", 0, 127, CC.sample_rate)
+  params:add_number("cc_glide", "glide cc", 0, 127, CC.glide)
+  params:add_number("cc_burst_on", "burst on cc", 0, 127, CC.burst_on)
 
   -- Demo mode params
   params:add_separator("demo mode")
@@ -523,6 +538,35 @@ function handle_cc(cc, val)
   elseif cc == params:get("cc_release") then
     local rel = 0.01 * math.pow(400, v)
     params:set("release", rel)
+
+  elseif cc == params:get("cc_formant2") then
+    -- Map 0-127 to 20-4000 Hz exponentially
+    local hz = 20 * math.pow(200, v)
+    params:set("formant2_hz", hz)
+
+  elseif cc == params:get("cc_formant3") then
+    -- Map 0-127 to 20-4000 Hz exponentially
+    local hz = 20 * math.pow(200, v)
+    params:set("formant3_hz", hz)
+
+  elseif cc == params:get("cc_pan2") then
+    params:set("pan2", v * 2 - 1)
+
+  elseif cc == params:get("cc_pan3") then
+    params:set("pan3", v * 2 - 1)
+
+  elseif cc == params:get("cc_sample_rate") then
+    -- Map 0-127 to 0.25-4.0 exponentially
+    local rate = 0.25 * math.pow(16, v)
+    params:set("sample_rate", rate)
+
+  elseif cc == params:get("cc_glide") then
+    -- Map 0-127 to 0-2 seconds
+    params:set("glide", v * 2)
+
+  elseif cc == params:get("cc_burst_on") then
+    -- Map 0-127 to 1-16
+    params:set("burst_on", math.floor(v * 15) + 1)
   end
 end
 
