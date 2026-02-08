@@ -35,6 +35,11 @@ Added a Lua-based gesture system with configurable parameters: start frequency (
 ## 5. Burst masking
 Regular on/off masking patterns (e.g., 4 pulsarets on, 2 silent) as described in Roads' Section 3.2. More structured and rhythmic than stochastic masking. Produces AM effects on the timbre and divides the fundamental by a subharmonic factor. Great for the rhythm-to-pitch crossover zone.
 
+###IMPLEMENTATION DETAILS:
+Added burst masking mode using PulseCount to track pulse number within a repeating cycle. Parameters: burst_on (1-16 pulses to play) and burst_off (1-16 pulses to silence). The pattern cycles continuously, creating subharmonic division of the fundamental. For example, 4 on / 2 off at 120 Hz creates an effective 20 Hz amplitude modulation (120/(4+2)). A toggle switches between stochastic (random probability) and burst (deterministic pattern) masking modes. Implemented in all three synth variants (single, multi-formant, and sample).
+
+**Performance Impact:** MINIMAL. Uses PulseCount UGen and simple modulo arithmetic. No measurable CPU overhead on RPi4.
+
 ## 6. Custom pulsaret loading
 Load a short audio sample from a file as the pulsaret waveform. Read from a buffer instead of the pre-built wavetables. Opens up a huge timbral range beyond the five built-in waveforms.
 
