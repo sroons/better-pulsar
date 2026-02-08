@@ -252,7 +252,7 @@ function init()
 
   params:add_separator("midi")
 
-  params:add_number("midi_device", "midi device", 1, 16, 3)
+  params:add_number("midi_device", "midi device", 1, 16, 4)
   params:set_action("midi_device", function(v)
     midi_device = midi.connect(v)
     midi_device.event = midi_event
