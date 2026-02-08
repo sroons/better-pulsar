@@ -263,6 +263,12 @@ function init()
   end)
 
   params:add_number("demo_tempo", "tempo", 40, 240, 120)
+  params:set_action("demo_tempo", function(v)
+    -- Sync clock tempo when demo is running
+    if params:get("demo_mode") == 2 then
+      clock.tempo = v
+    end
+  end)
 
   params:add_number("demo_root", "root note", 36, 72, 48)
   params:set_action("demo_root", function(v)
@@ -782,6 +788,8 @@ end
 function start_demo()
   stop_demo()
   generate_sequence()
+  -- Set clock tempo from demo tempo
+  clock.tempo = params:get("demo_tempo")
   demo_clock = clock.run(demo_loop)
 end
 
@@ -796,11 +804,13 @@ function stop_demo()
 end
 
 function demo_loop()
-  while true do
-    local tempo = params:get("demo_tempo")
-    local step_time = 60 / tempo
+  -- Use beat-based sync for proper timing and external clock support
+  local beat_pos = clock.get_beats()
 
+  while true do
     local step = demo_sequence[demo_step]
+    -- 1 step = 1 beat (quarter note)
+    local step_beats = 1
 
     if not step.rest then
       current_note = step.note
@@ -808,19 +818,27 @@ function demo_loop()
       velocity = step.vel
       engine.noteOn(step.note, step.vel)
 
-      -- Hold note for gate duration
-      local note_duration = step_time * step.gate
-      clock.sleep(note_duration)
+      -- Hold note for gate duration (fraction of beat)
+      local gate_beats = step_beats * step.gate
+      -- Ensure minimum gate to avoid zero-duration waits
+      gate_beats = math.max(gate_beats, 0.05)
+      beat_pos = beat_pos + gate_beats
+      clock.sync(beat_pos)
 
       -- Note off
       engine.noteOff(step.note)
       current_note = nil
 
-      -- Wait remaining step time
-      clock.sleep(step_time - note_duration)
+      -- Wait remaining step time (if gate < 1.0)
+      local remaining = step_beats - gate_beats
+      if remaining > 0.01 then
+        beat_pos = beat_pos + remaining
+        clock.sync(beat_pos)
+      end
     else
       current_note = nil
-      clock.sleep(step_time)
+      beat_pos = beat_pos + step_beats
+      clock.sync(beat_pos)
     end
 
     demo_step = demo_step + 1
