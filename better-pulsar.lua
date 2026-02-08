@@ -7,15 +7,39 @@
 -- MIDI note -> fundamental
 -- velocity -> amplitude
 --
--- E1: formant frequency
--- E2: duty cycle
--- E3: masking
--- K2: prev waveform
--- K3: next waveform
+-- Page 1 (main):
+--   E1: formant  E2: duty  E3: masking
+--   K2: next page  K3: next pulsaret
 --
--- demo mode: plays random
--- 8-note sequences in a
--- selectable scale/tempo
+-- Page 2 (params):
+--   E1: pulsaret  E2: window  E3: amp
+--   K2: next page
+--
+-- Page 3 (advanced):
+--   E1: formants  E2: poly  E3: glide
+--   K2: next page  K3: toggle sample
+--
+-- Page 4 (demo):
+--   E1: tempo  E2: scale  E3: length
+--   K2: next page  K3: toggle demo
+--
+-- Default MIDI CC mappings:
+--   CC 1:  formant hz
+--   CC 2:  duty cycle
+--   CC 3:  amplitude
+--   CC 4:  pan
+--   CC 5:  masking
+--   CC 6:  pulsaret
+--   CC 7:  window
+--   CC 8:  attack
+--   CC 9:  release
+--   CC 10: formant 2 hz
+--   CC 11: formant 3 hz
+--   CC 12: pan 2
+--   CC 13: pan 3
+--   CC 14: sample rate
+--   CC 15: glide
+--   CC 16: burst on
 
 engine.name = "BetterPulsar"
 

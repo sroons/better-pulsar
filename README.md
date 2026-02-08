@@ -110,13 +110,20 @@ When the fundamental frequency drops below 20 Hz, individual pulses become audib
 |----|-----------|
 | 1 | Formant frequency |
 | 2 | Duty cycle |
-| 7 | Amplitude |
-| 10 | Pan |
-| 11 | Masking |
-| 14 | Pulsaret (morph) |
-| 15 | Window (morph) |
-| 72 | Release time |
-| 73 | Attack time |
+| 3 | Amplitude |
+| 4 | Pan |
+| 5 | Masking |
+| 6 | Pulsaret (morph) |
+| 7 | Window (morph) |
+| 8 | Attack time |
+| 9 | Release time |
+| 10 | Formant 2 frequency |
+| 11 | Formant 3 frequency |
+| 12 | Pan 2 |
+| 13 | Pan 3 |
+| 14 | Sample rate |
+| 15 | Glide time |
+| 16 | Burst on (pulses) |
 
 ## Parameters
 
