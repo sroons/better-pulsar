@@ -21,7 +21,7 @@ Engine_BetterPulsar : CroneEngine {
     // Multi-formant parameters
     var pFormant2Hz, pFormant3Hz, pPan2, pPan3, pFormantCount;
     // Sample convolution parameters
-    var pUseSample, pSampleRate;
+    var pUseSample, pSampleRate, pSampleBufNum;
     // Burst masking parameters
     var pBurstOn, pBurstOff, pUseBurst;
     // Polyphony parameters
@@ -464,7 +464,8 @@ Engine_BetterPulsar : CroneEngine {
                 attack = 0.001,
                 release = 0.1,
                 sampleRate = 1.0,  // Playback rate multiplier
-                glide = 0;
+                glide = 0,
+                sampleBufNum = 0;   // Sample buffer number passed as arg
 
             var phase, trig, actualDuty, inPulsaret, pulsaretPhase, hzLag;
             var sampleSig, windowSig, windowSig1, windowSig2;
@@ -493,10 +494,10 @@ Engine_BetterPulsar : CroneEngine {
             inPulsaret = phase < actualDuty;
             pulsaretPhase = (phase / actualDuty).clip(0, 0.999);
 
-            // Read from sample buffer
-            sampleFrames = BufFrames.kr(sampleBuf.bufnum);
+            // Read from sample buffer (bufnum passed as arg, not baked in)
+            sampleFrames = BufFrames.kr(sampleBufNum);
             samplePhase = pulsaretPhase * sampleFrames * sampleRate;
-            sampleSig = BufRd.ar(1, sampleBuf.bufnum, samplePhase.clip(0, sampleFrames - 1), 0, 4);
+            sampleSig = BufRd.ar(1, sampleBufNum, samplePhase.clip(0, sampleFrames - 1), 0, 4);
 
             // Window morphing
             windowIdx1 = window.floor.clip(0, 4);
@@ -540,6 +541,7 @@ Engine_BetterPulsar : CroneEngine {
         // Sample defaults
         pUseSample = 0;
         pSampleRate = 1.0;
+        pSampleBufNum = sampleBuf.bufnum;
         // Burst defaults
         pBurstOn = 4;
         pBurstOff = 2;
@@ -593,6 +595,7 @@ Engine_BetterPulsar : CroneEngine {
                         \attack, pAttack,
                         \release, pRelease,
                         \sampleRate, pSampleRate,
+                        \sampleBufNum, pSampleBufNum,
                         \burstOn, pBurstOn,
                         \burstOff, pBurstOff,
                         \useBurst, pUseBurst,
@@ -650,6 +653,7 @@ Engine_BetterPulsar : CroneEngine {
                     \attack, pAttack,
                     \release, pRelease,
                     \sampleRate, pSampleRate,
+                    \sampleBufNum, pSampleBufNum,
                     \burstOn, pBurstOn,
                     \burstOff, pBurstOff,
                     \useBurst, pUseBurst,
@@ -796,11 +800,22 @@ Engine_BetterPulsar : CroneEngine {
         // Sample commands
         this.addCommand(\loadSample, "s", { arg msg;
             var path = msg[1].asString;
+            var oldBuf = sampleBuf;
             Buffer.read(context.server, path, action: { |buf|
-                // Copy loaded buffer data to our pre-allocated sample buffer
-                sampleBuf.free;
+                // Store new buffer and update bufnum
                 sampleBuf = buf;
-                ("Loaded sample: " ++ path).postln;
+                pSampleBufNum = buf.bufnum;
+                ("Loaded sample: " ++ path ++ " (bufnum: " ++ buf.bufnum ++ ")").postln;
+
+                // Update running synths with new buffer number
+                if(synth.notNil, { synth.set(\sampleBufNum, pSampleBufNum) });
+                numVoices.do({ |i|
+                    if(voices[i].notNil, { voices[i].set(\sampleBufNum, pSampleBufNum) });
+                });
+
+                // Defer freeing old buffer to ensure synths have switched
+                // Using a short delay to let the set commands take effect
+                { oldBuf.free }.defer(0.1);
             });
         });
 
