@@ -1024,8 +1024,7 @@ function stop_demo()
 end
 
 function demo_loop()
-  -- Use beat-based sync for proper timing and external clock support
-  local beat_pos = clock.get_beats()
+  -- Use clock.sync with durations (subdivisions) for proper timing
   local glide_enabled = params:get("glide") > 0
 
   while true do
@@ -1043,8 +1042,7 @@ function demo_loop()
       local gate_beats = step_beats * step.gate
       -- Ensure minimum gate to avoid zero-duration waits
       gate_beats = math.max(gate_beats, 0.05)
-      beat_pos = beat_pos + gate_beats
-      clock.sync(beat_pos)
+      clock.sync(gate_beats)
 
       -- Note off (skip if glide enabled for legato effect)
       if not glide_enabled then
@@ -1055,8 +1053,7 @@ function demo_loop()
       -- Wait remaining step time (if gate < 1.0)
       local remaining = step_beats - gate_beats
       if remaining > 0.01 then
-        beat_pos = beat_pos + remaining
-        clock.sync(beat_pos)
+        clock.sync(remaining)
       end
     else
       -- Rest - always release note
@@ -1064,8 +1061,7 @@ function demo_loop()
         engine.noteOff(current_note)
         current_note = nil
       end
-      beat_pos = beat_pos + step_beats
-      clock.sync(beat_pos)
+      clock.sync(step_beats)
     end
 
     demo_step = demo_step + 1
