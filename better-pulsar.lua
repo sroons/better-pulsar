@@ -96,7 +96,6 @@ local lfo_pan = nil
 -- UI state
 local current_page = 1
 local cpu_load = 0  -- Audio CPU percentage
-local cpu_clock = nil
 local num_pages = 3
 local page_names = {"main", "params", "demo"}
 
@@ -511,14 +510,15 @@ function init()
     end
   end)
 
-  -- Start CPU monitoring clock (every 500ms)
-  cpu_clock = clock.run(function()
-    while true do
-      clock.sleep(0.5)
-      -- Get audio engine CPU usage from norns
-      cpu_load = util.round(norns.audio.cpu(), 1)
+  -- Start CPU monitoring using norns poll system
+  local cpu_poll = poll.set("cpu_avg")
+  if cpu_poll then
+    cpu_poll.callback = function(val)
+      cpu_load = util.round(val, 1)
     end
-  end)
+    cpu_poll.time = 0.5
+    cpu_poll:start()
+  end
 end
 
 function midi_event(data)
@@ -1113,8 +1113,5 @@ function cleanup()
   if lfo_pan then lfo_pan:stop() end
   if redraw_clock then
     clock.cancel(redraw_clock)
-  end
-  if cpu_clock then
-    clock.cancel(cpu_clock)
   end
 end
