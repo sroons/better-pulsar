@@ -43,6 +43,11 @@ Added burst masking mode using PulseCount to track pulse number within a repeati
 ## 6. Custom pulsaret loading
 Load a short audio sample from a file as the pulsaret waveform. Read from a buffer instead of the pre-built wavetables. Opens up a huge timbral range beyond the five built-in waveforms.
 
+###IMPLEMENTATION DETAILS:
+IMPLEMENTED AS PART OF TASK 2. The sample pulsaret feature (use_sample toggle, sample_file picker, sample_rate control) allows loading any audio file as a custom pulsaret. When enabled, the loaded sample replaces the built-in wavetables. The sample_rate parameter (0.25x-4x) allows pitch adjustment. Short samples (< 1 second) work best for typical pulsaret duty cycles.
+
+**Performance Impact:** See Task 2 - MODERATE, primarily memory-related.
+
 ## 7. LFO modulation
 Route LFOs to formant frequency, duty cycle, masking, and pan for evolving textures. Norns has a built-in `lfo` library. Adds movement and life to sustained tones without manual CC tweaking.
 
