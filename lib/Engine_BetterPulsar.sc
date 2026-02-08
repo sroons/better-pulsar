@@ -129,12 +129,11 @@ Engine_BetterPulsar : CroneEngine {
                 amp = 0.5,
                 pan = 0,
                 gate = 1,
-                pulsaret = 0,       // pulsaret waveform index (0-4)
+                pulsaret = 0,       // pulsaret waveform index (0-9)
                 window = 1,         // window function index (0-4)
                 dutyCycle = 0.5,    // manual duty cycle override (0-1)
                 useDutyCycle = 0,   // 0 = use formant, 1 = use manual duty cycle
                 masking = 0,        // probability of pulse omission (0-1)
-                maskSeed = 0,       // seed for masking randomness
                 attack = 0.001,
                 release = 0.1,
                 burstOn = 4,        // pulses on in burst pattern
@@ -142,24 +141,19 @@ Engine_BetterPulsar : CroneEngine {
                 useBurst = 0,       // 0 = stochastic masking, 1 = burst masking
                 glide = 0;          // portamento time in seconds
 
-            var trig, phase, pulsaretPhase, pulsaretLen, pulsaretSig, windowSig;
-            var hzLag;
-            var period, actualDuty, silenceRatio, inPulsaret;
+            var trig, phase, pulsaretPhase, hzLag;
+            var actualDuty, inPulsaret;
             var mask, burstMask, stochasticMask, env, sig;
-            var pulsaretBufNum, windowBufNum;
             var pulsaretIdx1, pulsaretIdx2, pulsaretMix;
             var pulsaretSig1, pulsaretSig2;
             var pulsaretBufNum1, pulsaretBufNum2;
             var windowIdx1, windowIdx2, windowMix;
             var windowSig1, windowSig2;
             var windowBufNum1, windowBufNum2;
-            var pulseCount, burstPeriod, burstPhase;
+            var pulseCount, burstPeriod;
 
             // Apply portamento/glide to hz
             hzLag = Lag.kr(hz, glide);
-
-            // Calculate period and duty cycle
-            period = hzLag.reciprocal;
 
             // Duty cycle: either from formant ratio or manual
             actualDuty = Select.kr(useDutyCycle, [
@@ -521,43 +515,8 @@ Engine_BetterPulsar : CroneEngine {
             Out.ar(out, Pan2.ar(sig, pan));
         }).add;
 
-        // Simpler, more efficient pulsar synth for when CPU is constrained
-        SynthDef(\betterPulsarLite, {
-            arg out = 0,
-                hz = 110,
-                formantHz = 440,
-                amp = 0.5,
-                pan = 0,
-                gate = 1,
-                window = 1,
-                masking = 0;
-
-            var trig, phase, duty, inPulsaret;
-            var pulsaretPhase, sig, windowSig, mask, env;
-            var windowBufNum;
-
-            duty = (hz / formantHz).clip(0.01, 1.0);
-            phase = Phasor.ar(0, hz * SampleDur.ir, 0, 1);
-            trig = Trig1.ar(phase < 0.01, SampleDur.ir);
-
-            mask = TRand.ar(0, 1, trig) > masking;
-            inPulsaret = phase < duty;
-            pulsaretPhase = (phase / duty).clip(0, 0.999);
-
-            // Simple sine pulsaret
-            sig = SinOsc.ar(0, pulsaretPhase * 2pi);
-
-            // Window from buffer
-            windowBufNum = Select.kr(window.round, windowBufs.collect(_.bufnum));
-            windowSig = BufRd.ar(1, windowBufNum, pulsaretPhase * BufFrames.kr(windowBufNum), 1, 4);
-
-            sig = sig * windowSig * inPulsaret * Lag.ar(mask, 0.001);
-
-            env = EnvGen.ar(Env.asr(0.001, 1, 0.1), gate, doneAction: 2);
-            sig = LeakDC.ar(sig * env * amp).tanh;
-
-            Out.ar(out, Pan2.ar(sig, pan));
-        }).add;
+        // Note: betterPulsarLite removed - was unused dead code that lacked
+        // features like burst masking, glide, and ignored attack/release args
 
         server.sync;
 
