@@ -471,39 +471,34 @@ function init()
   end)
 
   -- Reverb parameters (uses norns built-in reverb)
+  -- Note: Some reverb functions may not exist on all norns versions
   params:add_separator("reverb")
 
   params:add_control("reverb_mix", "reverb mix",
     controlspec.new(0, 1, "lin", 0.01, 0.1, ""))
   params:set_action("reverb_mix", function(v)
     -- level_eng_rev controls engine-to-reverb send level
-    audio.level_eng_rev(v)
-  end)
-
-  params:add_control("reverb_return", "reverb return",
-    controlspec.new(0, 1, "lin", 0.01, 0.5, ""))
-  params:set_action("reverb_return", function(v)
-    audio.level_rev(v)
+    if audio.level_eng_rev then audio.level_eng_rev(v) end
   end)
 
   params:add_control("reverb_damp", "reverb damp",
     controlspec.new(0, 1, "lin", 0.01, 0.5, ""))
   params:set_action("reverb_damp", function(v)
-    audio.rev_damp(v)
+    if audio.rev_damp then audio.rev_damp(v) end
   end)
 
   params:add_control("reverb_size", "reverb size",
     controlspec.new(0.5, 5, "lin", 0.01, 2.0, "s"))
   params:set_action("reverb_size", function(v)
-    audio.rev_time(v)
+    if audio.rev_time then audio.rev_time(v) end
   end)
 
   -- Connect MIDI
   midi_device = midi.connect(params:get("midi_device" ))
   midi_device.event = midi_event
 
-  -- Ensure reverb is active
-  audio.rev_on()
+  -- Ensure reverb is active (if function exists)
+  if audio.rev_on then audio.rev_on() end
 
   -- Bang all params to sync engine
   params:bang()
