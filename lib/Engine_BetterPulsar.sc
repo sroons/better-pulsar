@@ -695,7 +695,7 @@ Engine_BetterPulsar : CroneEngine {
             });
         });
 
-        this.addCommand(\noteOff, "f", { arg msg;
+        this.addCommand(\noteOff, "i", { arg msg;
             var note = msg[1];
             if(pPolyMode == 0, {
                 // Mono mode
@@ -719,78 +719,108 @@ Engine_BetterPulsar : CroneEngine {
         });
 
         this.addCommand(\hz, "f", { arg msg;
-            if(synth.notNil, { synth.set(\hz, msg[1]) });
+            var val = msg[1];
+            if(synth.notNil, { synth.set(\hz, val) });
+            numVoices.do({ |i| if(voices[i].notNil, { voices[i].set(\hz, val) }) });
         });
 
         this.addCommand(\formantHz, "f", { arg msg;
-            pFormantHz = msg[1];
-            if(synth.notNil, { synth.set(\formantHz, msg[1]) });
+            var val = msg[1];
+            pFormantHz = val;
+            if(synth.notNil, { synth.set(\formantHz, val) });
+            numVoices.do({ |i| if(voices[i].notNil, { voices[i].set(\formantHz, val) }) });
         });
 
         this.addCommand(\amp, "f", { arg msg;
-            pAmp = msg[1];
-            if(synth.notNil, { synth.set(\amp, msg[1]) });
+            var val = msg[1];
+            pAmp = val;
+            if(synth.notNil, { synth.set(\amp, val) });
+            numVoices.do({ |i| if(voices[i].notNil, { voices[i].set(\amp, val) }) });
         });
 
         this.addCommand(\pan, "f", { arg msg;
-            pPan = msg[1];
-            if(synth.notNil, { synth.set(\pan, msg[1]) });
+            var val = msg[1];
+            pPan = val;
+            if(synth.notNil, { synth.set(\pan, val) });
+            numVoices.do({ |i| if(voices[i].notNil, { voices[i].set(\pan, val) }) });
         });
 
         this.addCommand(\pulsaret, "f", { arg msg;
-            pPulsaret = msg[1];
-            if(synth.notNil, { synth.set(\pulsaret, msg[1]) });
+            var val = msg[1];
+            pPulsaret = val;
+            if(synth.notNil, { synth.set(\pulsaret, val) });
+            numVoices.do({ |i| if(voices[i].notNil, { voices[i].set(\pulsaret, val) }) });
         });
 
         this.addCommand(\window, "f", { arg msg;
-            pWindow = msg[1];
-            if(synth.notNil, { synth.set(\window, msg[1]) });
+            var val = msg[1];
+            pWindow = val;
+            if(synth.notNil, { synth.set(\window, val) });
+            numVoices.do({ |i| if(voices[i].notNil, { voices[i].set(\window, val) }) });
         });
 
         this.addCommand(\dutyCycle, "f", { arg msg;
-            pDutyCycle = msg[1];
-            if(synth.notNil, { synth.set(\dutyCycle, msg[1]) });
+            var val = msg[1];
+            pDutyCycle = val;
+            if(synth.notNil, { synth.set(\dutyCycle, val) });
+            numVoices.do({ |i| if(voices[i].notNil, { voices[i].set(\dutyCycle, val) }) });
         });
 
         this.addCommand(\useDutyCycle, "i", { arg msg;
-            pUseDutyCycle = msg[1];
-            if(synth.notNil, { synth.set(\useDutyCycle, msg[1]) });
+            var val = msg[1];
+            pUseDutyCycle = val;
+            if(synth.notNil, { synth.set(\useDutyCycle, val) });
+            numVoices.do({ |i| if(voices[i].notNil, { voices[i].set(\useDutyCycle, val) }) });
         });
 
         this.addCommand(\masking, "f", { arg msg;
-            pMasking = msg[1];
-            if(synth.notNil, { synth.set(\masking, msg[1]) });
+            var val = msg[1];
+            pMasking = val;
+            if(synth.notNil, { synth.set(\masking, val) });
+            numVoices.do({ |i| if(voices[i].notNil, { voices[i].set(\masking, val) }) });
         });
 
         this.addCommand(\attack, "f", { arg msg;
-            pAttack = msg[1];
-            if(synth.notNil, { synth.set(\attack, msg[1]) });
+            var val = msg[1];
+            pAttack = val;
+            if(synth.notNil, { synth.set(\attack, val) });
+            numVoices.do({ |i| if(voices[i].notNil, { voices[i].set(\attack, val) }) });
         });
 
         this.addCommand(\release, "f", { arg msg;
-            pRelease = msg[1];
-            if(synth.notNil, { synth.set(\release, msg[1]) });
+            var val = msg[1];
+            pRelease = val;
+            if(synth.notNil, { synth.set(\release, val) });
+            numVoices.do({ |i| if(voices[i].notNil, { voices[i].set(\release, val) }) });
         });
 
         // Multi-formant commands
         this.addCommand(\formant2Hz, "f", { arg msg;
-            pFormant2Hz = msg[1];
-            if(synth.notNil, { synth.set(\formant2Hz, msg[1]) });
+            var val = msg[1];
+            pFormant2Hz = val;
+            if(synth.notNil, { synth.set(\formant2Hz, val) });
+            numVoices.do({ |i| if(voices[i].notNil, { voices[i].set(\formant2Hz, val) }) });
         });
 
         this.addCommand(\formant3Hz, "f", { arg msg;
-            pFormant3Hz = msg[1];
-            if(synth.notNil, { synth.set(\formant3Hz, msg[1]) });
+            var val = msg[1];
+            pFormant3Hz = val;
+            if(synth.notNil, { synth.set(\formant3Hz, val) });
+            numVoices.do({ |i| if(voices[i].notNil, { voices[i].set(\formant3Hz, val) }) });
         });
 
         this.addCommand(\pan2, "f", { arg msg;
-            pPan2 = msg[1];
-            if(synth.notNil, { synth.set(\pan2, msg[1]) });
+            var val = msg[1];
+            pPan2 = val;
+            if(synth.notNil, { synth.set(\pan2, val) });
+            numVoices.do({ |i| if(voices[i].notNil, { voices[i].set(\pan2, val) }) });
         });
 
         this.addCommand(\pan3, "f", { arg msg;
-            pPan3 = msg[1];
-            if(synth.notNil, { synth.set(\pan3, msg[1]) });
+            var val = msg[1];
+            pPan3 = val;
+            if(synth.notNil, { synth.set(\pan3, val) });
+            numVoices.do({ |i| if(voices[i].notNil, { voices[i].set(\pan3, val) }) });
         });
 
         this.addCommand(\formantCount, "i", { arg msg;
@@ -815,24 +845,32 @@ Engine_BetterPulsar : CroneEngine {
         });
 
         this.addCommand(\sampleRate, "f", { arg msg;
-            pSampleRate = msg[1];
-            if(synth.notNil, { synth.set(\sampleRate, msg[1]) });
+            var val = msg[1];
+            pSampleRate = val;
+            if(synth.notNil, { synth.set(\sampleRate, val) });
+            numVoices.do({ |i| if(voices[i].notNil, { voices[i].set(\sampleRate, val) }) });
         });
 
         // Burst masking commands
         this.addCommand(\burstOn, "i", { arg msg;
-            pBurstOn = msg[1];
-            if(synth.notNil, { synth.set(\burstOn, msg[1]) });
+            var val = msg[1];
+            pBurstOn = val;
+            if(synth.notNil, { synth.set(\burstOn, val) });
+            numVoices.do({ |i| if(voices[i].notNil, { voices[i].set(\burstOn, val) }) });
         });
 
         this.addCommand(\burstOff, "i", { arg msg;
-            pBurstOff = msg[1];
-            if(synth.notNil, { synth.set(\burstOff, msg[1]) });
+            var val = msg[1];
+            pBurstOff = val;
+            if(synth.notNil, { synth.set(\burstOff, val) });
+            numVoices.do({ |i| if(voices[i].notNil, { voices[i].set(\burstOff, val) }) });
         });
 
         this.addCommand(\useBurst, "i", { arg msg;
-            pUseBurst = msg[1];
-            if(synth.notNil, { synth.set(\useBurst, msg[1]) });
+            var val = msg[1];
+            pUseBurst = val;
+            if(synth.notNil, { synth.set(\useBurst, val) });
+            numVoices.do({ |i| if(voices[i].notNil, { voices[i].set(\useBurst, val) }) });
         });
 
         // Polyphony commands
@@ -868,7 +906,13 @@ Engine_BetterPulsar : CroneEngine {
     }
 
     free {
+        // Free mono synth
         if(synth.notNil, { synth.free });
+        // Free all poly voices
+        numVoices.do({ |i|
+            if(voices[i].notNil, { voices[i].free });
+        });
+        // Free buffers
         pulsaretBufs.do({ |buf| buf.free });
         windowBufs.do({ |buf| buf.free });
         if(sampleBuf.notNil, { sampleBuf.free });
