@@ -99,13 +99,19 @@ function init()
   params:add_control("formant_hz", "formant hz",
     controlspec.new(20, 4000, "exp", 0, 440, "hz"))
   params:set_action("formant_hz", function(v)
-    engine.formantHz(v)
+    -- Only send directly if LFO is not active (LFO handles modulated sending)
+    if params:get("lfo_formant_enabled") ~= 2 then
+      engine.formantHz(v)
+    end
   end)
 
   params:add_control("duty_cycle", "duty cycle",
     controlspec.new(0.01, 1.0, "lin", 0.01, 0.5, ""))
   params:set_action("duty_cycle", function(v)
-    engine.dutyCycle(v)
+    -- Only send directly if LFO is not active
+    if params:get("lfo_duty_enabled") ~= 2 then
+      engine.dutyCycle(v)
+    end
   end)
 
   params:add_option("use_duty_cycle", "duty mode", {"formant ratio", "manual"}, 1)
@@ -128,7 +134,10 @@ function init()
   params:add_control("masking", "masking",
     controlspec.new(0, 1.0, "lin", 0.01, 0, ""))
   params:set_action("masking", function(v)
-    engine.masking(v)
+    -- Only send directly if LFO is not active
+    if params:get("lfo_masking_enabled") ~= 2 then
+      engine.masking(v)
+    end
   end)
 
   -- Burst masking
@@ -150,7 +159,10 @@ function init()
   params:add_control("pan", "pan",
     controlspec.new(-1.0, 1.0, "lin", 0.01, 0, ""))
   params:set_action("pan", function(v)
-    engine.pan(v)
+    -- Only send directly if LFO is not active
+    if params:get("lfo_pan_enabled") ~= 2 then
+      engine.pan(v)
+    end
   end)
 
   params:add_control("attack", "attack",
@@ -929,6 +941,15 @@ function trigger_bridge()
       start_hz, end_hz = end_hz, start_hz
     end
 
+    -- Start a synth if none is playing (use MIDI note 60 = C4 as base)
+    -- The hz will be overwritten immediately, but we need a synth to exist
+    if current_note == nil then
+      local start_note = musicutil.freq_to_note_num(start_hz)
+      engine.noteOn(start_note, 100)
+      current_note = start_note
+      note_hz = start_hz
+    end
+
     local steps = math.floor(duration * 30)  -- 30 updates per second
     local step_time = duration / steps
 
@@ -946,6 +967,7 @@ function trigger_bridge()
         hz = math.exp(log_start + (log_end - log_start) * (1 - math.pow(1 - t, 2)))
       end
 
+      note_hz = hz
       engine.hz(hz)
       clock.sleep(step_time)
     end
