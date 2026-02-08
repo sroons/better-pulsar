@@ -47,6 +47,8 @@ local lfo_pan = nil
 
 -- UI state
 local current_page = 1
+local cpu_load = 0  -- Audio CPU percentage
+local cpu_clock = nil
 local num_pages = 3
 local page_names = {"main", "params", "demo"}
 
@@ -450,6 +452,15 @@ function init()
       redraw()
     end
   end)
+
+  -- Start CPU monitoring clock (every 500ms)
+  cpu_clock = clock.run(function()
+    while true do
+      clock.sleep(0.5)
+      -- Get audio engine CPU usage from norns
+      cpu_load = util.round(norns.audio.cpu(), 1)
+    end
+  end)
 end
 
 function midi_event(data)
@@ -639,8 +650,9 @@ function redraw_main()
   -- Visual representation of pulsar
   draw_pulsar()
 
-  -- Page indicator
+  -- Page indicator and CPU
   draw_page_indicator()
+  draw_cpu()
 end
 
 function redraw_params()
@@ -675,8 +687,9 @@ function redraw_params()
   screen.move(4, 62)
   screen.text("E1:wave E2:form E3:amp K2:page")
 
-  -- Page indicator
+  -- Page indicator and CPU
   draw_page_indicator()
+  draw_cpu()
 end
 
 function redraw_demo()
@@ -711,8 +724,9 @@ function redraw_demo()
   screen.move(4, 62)
   screen.text("K2:page K3:on/off E1:tempo")
 
-  -- Page indicator
+  -- Page indicator and CPU
   draw_page_indicator()
+  draw_cpu()
 end
 
 function draw_page_indicator()
@@ -728,6 +742,19 @@ function draw_page_indicator()
       screen.stroke()
     end
   end
+end
+
+function draw_cpu()
+  -- CPU load indicator in top-left corner
+  local cpu_color = 5  -- dim by default
+  if cpu_load > 70 then
+    cpu_color = 15  -- bright when high
+  elseif cpu_load > 50 then
+    cpu_color = 10  -- medium when moderate
+  end
+  screen.level(cpu_color)
+  screen.move(4, 6)
+  screen.text(string.format("cpu:%.0f%%", cpu_load))
 end
 
 function draw_pulsar()
@@ -1003,5 +1030,8 @@ function cleanup()
   if lfo_pan then lfo_pan:stop() end
   if redraw_clock then
     clock.cancel(redraw_clock)
+  end
+  if cpu_clock then
+    clock.cancel(cpu_clock)
   end
 end
