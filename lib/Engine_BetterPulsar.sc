@@ -145,10 +145,10 @@ Engine_BetterPulsar : CroneEngine {
             var actualDuty, inPulsaret;
             var mask, burstMask, stochasticMask, env, sig;
             var pulsaretIdx1, pulsaretIdx2, pulsaretMix;
-            var pulsaretSig1, pulsaretSig2;
+            var pulsaretSig1, pulsaretSig2, pulsaretSig;
             var pulsaretBufNum1, pulsaretBufNum2;
             var windowIdx1, windowIdx2, windowMix;
-            var windowSig1, windowSig2;
+            var windowSig1, windowSig2, windowSig;
             var windowBufNum1, windowBufNum2;
             var pulseCount, burstPeriod;
 
