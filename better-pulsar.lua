@@ -364,6 +364,33 @@ function init()
   -- Initialize LFOs
   init_lfos()
 
+  -- Reverb parameters (uses norns built-in reverb)
+  params:add_separator("reverb")
+
+  params:add_control("reverb_mix", "reverb mix",
+    controlspec.new(0, 1, "lin", 0.01, 0.1, ""))
+  params:set_action("reverb_mix", function(v)
+    audio.level_rev(v)
+  end)
+
+  params:add_control("reverb_return", "reverb return",
+    controlspec.new(0, 1, "lin", 0.01, 0.5, ""))
+  params:set_action("reverb_return", function(v)
+    audio.rev_return_level(v)
+  end)
+
+  params:add_control("reverb_damp", "reverb damp",
+    controlspec.new(0, 1, "lin", 0.01, 0.5, ""))
+  params:set_action("reverb_damp", function(v)
+    audio.rev_damp(v)
+  end)
+
+  params:add_control("reverb_size", "reverb size",
+    controlspec.new(0.5, 5, "lin", 0.01, 2.0, "s"))
+  params:set_action("reverb_size", function(v)
+    audio.rev_time(v)
+  end)
+
   -- Connect MIDI
   midi_device = midi.connect(params:get("midi_device" ))
   midi_device.event = midi_event
