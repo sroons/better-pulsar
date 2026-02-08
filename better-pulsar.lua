@@ -131,22 +131,22 @@ end
 -- MIDI CC mappings (adjust to your controller)
 -- Default: CC 1-16 consecutively
 local CC = {
-  formant     = 1,
-  duty_cycle  = 2,
-  amplitude   = 3,
-  pan         = 4,
-  masking     = 5,
-  pulsaret    = 6,
-  window      = 7,
-  attack      = 8,
-  release     = 9,
-  formant2    = 10,
-  formant3    = 11,
-  pan2        = 12,
-  pan3        = 13,
-  sample_rate = 14,
-  glide       = 15,
-  burst_on    = 16
+  formant     = 32,
+  duty_cycle  = 33,
+  amplitude   = 34,
+  pan         = 35,
+  masking     = 36,
+  pulsaret    = 37,
+  window      = 38,
+  attack      = 39,
+  release     = 40,
+  formant2    = 41,
+  formant3    = 42,
+  pan2        = 43,
+  pan3        = 44,
+  sample_rate = 45,
+  glide       = 46,
+  burst_on    = 47
 }
 
 function init()
@@ -223,14 +223,16 @@ function init()
   end)
 
   params:add_control("attack", "attack",
-    controlspec.new(0.001, 2.0, "exp", 0, 0.001, "s"))
+    controlspec.new(0.001, 2.0, "exp", 0, 0.01, "s"))
   params:set_action("attack", function(v)
+    print(string.format("attack: %.3f", v))
     engine.attack(v)
   end)
 
   params:add_control("release", "release",
-    controlspec.new(0.01, 4.0, "exp", 0, 0.1, "s"))
+    controlspec.new(0.01, 4.0, "exp", 0, 0.3, "s"))
   params:set_action("release", function(v)
+    print(string.format("release: %.3f", v))
     engine.release(v)
   end)
 
