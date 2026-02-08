@@ -3,6 +3,11 @@
 ## 1. Multiple formants with independent panning
 Run 2-3 pulsar generators at the same fundamental frequency but different formant frequencies, each with independent pan position. This is the signature advanced pulsar synthesis technique from Roads' Section 3.1 — spatially separated formants within a single tone. Dramatically richer spectra and spatial imagery.
 
+###IMPLEMENTATION DETAILS:
+Added new `betterPulsarMulti` SynthDef that runs up to 3 parallel formant generators sharing the same fundamental frequency, pulsaret waveform, and window function. Each formant has its own frequency (formant_hz, formant2_hz, formant3_hz) and pan position (pan, pan2, pan3). The `formant_count` parameter (1-3) controls how many formants are active; when set to 1, the original single-formant synth is used for optimal CPU efficiency. New Lua parameters added under "multi-formant" separator. Default frequencies follow harmonic series (440, 660, 880 Hz) and default pans spread across stereo field (center, left, right).
+
+**Performance Impact:** HIGH. Each additional formant adds approximately 50% CPU overhead due to duplicate buffer reads and signal processing. With 3 formants, expect ~150% more CPU usage than single formant. On RPi4, recommend limiting to 2 formants when using other DSP-heavy features.
+
 ## 2. Convolution with samples
 Convolve pulsar trains with recorded sounds (Roads' Section 3.3). At infrasonic rates, each pulsar is replaced by a copy of the sample, creating rhythmic patterns. At audio rates, the sample is filtered through the pulsar train's comb-like spectrum. Two effects: filtering imposed by the time-varying pulsar train, and overlapping effects from short fundamental periods.
 
