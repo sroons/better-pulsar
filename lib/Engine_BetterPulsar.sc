@@ -667,8 +667,11 @@ Engine_BetterPulsar : CroneEngine {
         this.addCommand(\noteOff, "i", { arg msg;
             var note = msg[1];
             if(pPolyMode == 0, {
-                // Mono mode
+                // Mono mode - release synth and clear reference
+                // This ensures next noteOn creates a new synth
+                // (glide only works with true legato - overlapping notes)
                 if(synth.notNil, { synth.set(\gate, 0) });
+                synth = nil;
             }, {
                 // Poly mode - find and release voice playing this note
                 numVoices.do({ |i|
