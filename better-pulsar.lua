@@ -96,8 +96,8 @@ local lfo_pan = nil
 -- UI state
 local current_page = 1
 local cpu_load = 0  -- Audio CPU percentage
-local num_pages = 3
-local page_names = {"main", "params", "demo"}
+local num_pages = 4
+local page_names = {"main", "params", "advanced", "demo"}
 
 -- Pulsaret waveform names
 local pulsaret_names = {
@@ -345,10 +345,8 @@ function init()
 
   params:add_number("demo_tempo", "tempo", 40, 240, 120)
   params:set_action("demo_tempo", function(v)
-    -- Sync clock tempo when demo is running
-    if params:get("demo_mode") == 2 then
-      clock.tempo = v
-    end
+    -- Always update clock tempo
+    clock.tempo = v
   end)
 
   params:add_number("demo_root", "root note", 36, 72, 48)
@@ -628,11 +626,20 @@ function enc(n, d)
     if n == 1 then
       params:delta("pulsaret", d * 0.1)
     elseif n == 2 then
-      params:delta("formant_hz", d * 2)
+      params:delta("window", d * 0.1)
     elseif n == 3 then
       params:delta("amp", d * 0.02)
     end
   elseif current_page == 3 then
+    -- Advanced page
+    if n == 1 then
+      params:delta("formant_count", d)
+    elseif n == 2 then
+      params:delta("poly_mode", d)
+    elseif n == 3 then
+      params:delta("glide", d * 0.02)
+    end
+  elseif current_page == 4 then
     -- Demo page
     if n == 1 then
       params:delta("demo_tempo", d)
@@ -659,6 +666,10 @@ function key(n, z)
         local p = params:get("pulsaret")
         params:set("pulsaret", util.clamp(p + 1, 0, 9))
       elseif current_page == 3 then
+        -- Advanced page: toggle sample mode
+        local sm = params:get("use_sample")
+        params:set("use_sample", sm == 1 and 2 or 1)
+      elseif current_page == 4 then
         -- Demo page: toggle demo on/off
         local dm = params:get("demo_mode")
         params:set("demo_mode", dm == 1 and 2 or 1)
@@ -675,6 +686,8 @@ function redraw()
   elseif current_page == 2 then
     redraw_params()
   elseif current_page == 3 then
+    redraw_advanced()
+  elseif current_page == 4 then
     redraw_demo()
   end
 
@@ -772,7 +785,46 @@ function redraw_params()
   -- Hints
   screen.level(5)
   screen.move(4, 62)
-  screen.text("E1:wave E2:form E3:amp K2:page")
+  screen.text("E1:wave E2:win E3:amp K2:page")
+
+  -- Page indicator and CPU
+  draw_page_indicator()
+  draw_cpu()
+end
+
+function redraw_advanced()
+  -- Title
+  screen.level(15)
+  screen.move(64, 8)
+  screen.text_center("advanced")
+
+  -- Left column - multi-formant & poly
+  screen.level(10)
+  screen.move(4, 20)
+  screen.text(string.format("formants: %d", params:get("formant_count")))
+  screen.move(4, 30)
+  local poly_mode = params:get("poly_mode") == 1 and "mono" or "poly"
+  screen.text(string.format("mode: %s", poly_mode))
+  screen.move(4, 40)
+  screen.text(string.format("glide: %.2fs", params:get("glide")))
+  screen.move(4, 50)
+  local sample_on = params:get("use_sample") == 2
+  screen.text(string.format("sample: %s", sample_on and "on" or "off"))
+
+  -- Right column - formant frequencies
+  screen.move(70, 20)
+  screen.text(string.format("f1: %.0f", params:get("formant_hz")))
+  screen.move(70, 30)
+  screen.text(string.format("f2: %.0f", params:get("formant2_hz")))
+  screen.move(70, 40)
+  screen.text(string.format("f3: %.0f", params:get("formant3_hz")))
+  screen.move(70, 50)
+  screen.text(string.format("rate: %.2fx", params:get("sample_rate")))
+
+  -- Hints
+  screen.level(5)
+  screen.move(4, 62)
+  screen.text("E1:form# E2:poly E3:glide K3:samp")
 
   -- Page indicator and CPU
   draw_page_indicator()
