@@ -26,6 +26,7 @@ local lfo = require "lfo"
 local current_note = nil
 local note_hz = 110
 local velocity = 100
+local midi_device = nil
 
 -- Demo mode state
 local demo_clock = nil
@@ -390,7 +391,8 @@ function init()
   params:add_control("reverb_mix", "reverb mix",
     controlspec.new(0, 1, "lin", 0.01, 0.1, ""))
   params:set_action("reverb_mix", function(v)
-    audio.level_rev(v)
+    -- level_eng_rev controls engine-to-reverb send level
+    audio.level_eng_rev(v)
   end)
 
   params:add_control("reverb_return", "reverb return",
@@ -414,6 +416,9 @@ function init()
   -- Connect MIDI
   midi_device = midi.connect(params:get("midi_device" ))
   midi_device.event = midi_event
+
+  -- Ensure reverb is active
+  audio.rev_on()
 
   -- Bang all params to sync engine
   params:bang()
