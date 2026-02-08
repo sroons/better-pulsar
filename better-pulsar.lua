@@ -20,6 +20,7 @@
 engine.name = "BetterPulsar"
 
 local musicutil = require "musicutil"
+local lfo = require "lfo"
 
 -- State
 local current_note = nil
@@ -36,6 +37,12 @@ local demo_octaves = 2
 -- Time-scale bridging state
 local bridge_clock = nil
 local bridge_active = false
+
+-- LFO objects
+local lfo_formant = nil
+local lfo_duty = nil
+local lfo_masking = nil
+local lfo_pan = nil
 
 -- UI state
 local current_page = 1
@@ -298,6 +305,64 @@ function init()
   params:set_action("bridge_trigger", function()
     trigger_bridge()
   end)
+
+  -- LFO parameters
+  params:add_separator("lfo modulation")
+
+  -- Formant LFO
+  params:add_option("lfo_formant_enabled", "formant lfo", {"off", "on"}, 1)
+  params:set_action("lfo_formant_enabled", function(v)
+    if v == 2 then lfo_formant:start() else lfo_formant:stop() end
+  end)
+  params:add_control("lfo_formant_rate", "formant lfo rate",
+    controlspec.new(0.01, 10, "exp", 0, 0.5, "hz"))
+  params:set_action("lfo_formant_rate", function(v)
+    lfo_formant:set("period", 1/v)
+  end)
+  params:add_control("lfo_formant_depth", "formant lfo depth",
+    controlspec.new(0, 1, "lin", 0.01, 0.3, ""))
+
+  -- Duty cycle LFO
+  params:add_option("lfo_duty_enabled", "duty lfo", {"off", "on"}, 1)
+  params:set_action("lfo_duty_enabled", function(v)
+    if v == 2 then lfo_duty:start() else lfo_duty:stop() end
+  end)
+  params:add_control("lfo_duty_rate", "duty lfo rate",
+    controlspec.new(0.01, 10, "exp", 0, 0.25, "hz"))
+  params:set_action("lfo_duty_rate", function(v)
+    lfo_duty:set("period", 1/v)
+  end)
+  params:add_control("lfo_duty_depth", "duty lfo depth",
+    controlspec.new(0, 1, "lin", 0.01, 0.3, ""))
+
+  -- Masking LFO
+  params:add_option("lfo_masking_enabled", "masking lfo", {"off", "on"}, 1)
+  params:set_action("lfo_masking_enabled", function(v)
+    if v == 2 then lfo_masking:start() else lfo_masking:stop() end
+  end)
+  params:add_control("lfo_masking_rate", "masking lfo rate",
+    controlspec.new(0.01, 10, "exp", 0, 0.1, "hz"))
+  params:set_action("lfo_masking_rate", function(v)
+    lfo_masking:set("period", 1/v)
+  end)
+  params:add_control("lfo_masking_depth", "masking lfo depth",
+    controlspec.new(0, 1, "lin", 0.01, 0.5, ""))
+
+  -- Pan LFO
+  params:add_option("lfo_pan_enabled", "pan lfo", {"off", "on"}, 1)
+  params:set_action("lfo_pan_enabled", function(v)
+    if v == 2 then lfo_pan:start() else lfo_pan:stop() end
+  end)
+  params:add_control("lfo_pan_rate", "pan lfo rate",
+    controlspec.new(0.01, 10, "exp", 0, 0.2, "hz"))
+  params:set_action("lfo_pan_rate", function(v)
+    lfo_pan:set("period", 1/v)
+  end)
+  params:add_control("lfo_pan_depth", "pan lfo depth",
+    controlspec.new(0, 1, "lin", 0.01, 0.5, ""))
+
+  -- Initialize LFOs
+  init_lfos()
 
   -- Connect MIDI
   midi_device = midi.connect(params:get("midi_device" ))
@@ -719,6 +784,62 @@ function demo_loop()
   end
 end
 
+-- LFO initialization
+function init_lfos()
+  -- Formant LFO - modulates formant frequency
+  lfo_formant = lfo:add{
+    shape = "sine",
+    min = 0,
+    max = 1,
+    period = 2,
+    action = function(scaled, raw)
+      local depth = params:get("lfo_formant_depth")
+      local base = params:get("formant_hz")
+      -- Modulate around base value: 0.5x to 2x
+      local mult = 1 + ((raw - 0.5) * 2 * depth)
+      engine.formantHz(base * mult)
+    end
+  }
+
+  -- Duty cycle LFO
+  lfo_duty = lfo:add{
+    shape = "sine",
+    min = 0,
+    max = 1,
+    period = 4,
+    action = function(scaled, raw)
+      local depth = params:get("lfo_duty_depth")
+      local base = params:get("duty_cycle")
+      local mod = base + ((raw - 0.5) * depth)
+      engine.dutyCycle(util.clamp(mod, 0.01, 1.0))
+    end
+  }
+
+  -- Masking LFO
+  lfo_masking = lfo:add{
+    shape = "sine",
+    min = 0,
+    max = 1,
+    period = 10,
+    action = function(scaled, raw)
+      local depth = params:get("lfo_masking_depth")
+      engine.masking(raw * depth)
+    end
+  }
+
+  -- Pan LFO
+  lfo_pan = lfo:add{
+    shape = "sine",
+    min = -1,
+    max = 1,
+    period = 5,
+    action = function(scaled, raw)
+      local depth = params:get("lfo_pan_depth")
+      engine.pan(scaled * depth)
+    end
+  }
+end
+
 -- Time-scale bridging functions
 function trigger_bridge()
   -- Cancel any existing bridge
@@ -776,6 +897,11 @@ end
 function cleanup()
   stop_demo()
   stop_bridge()
+  -- Stop LFOs
+  if lfo_formant then lfo_formant:stop() end
+  if lfo_duty then lfo_duty:stop() end
+  if lfo_masking then lfo_masking:stop() end
+  if lfo_pan then lfo_pan:stop() end
   if redraw_clock then
     clock.cancel(redraw_clock)
   end
