@@ -33,6 +33,10 @@ local demo_step = 1
 local demo_root = 48  -- C3
 local demo_octaves = 2
 
+-- Time-scale bridging state
+local bridge_clock = nil
+local bridge_active = false
+
 -- UI state
 local current_page = 1
 local num_pages = 3
@@ -256,6 +260,27 @@ function init()
   params:set_action("demo_regenerate", function()
     generate_sequence()
     demo_step = 1
+  end)
+
+  -- Time-scale bridging parameters
+  params:add_separator("time-scale bridge")
+
+  params:add_control("bridge_start_hz", "start hz",
+    controlspec.new(0.5, 20, "exp", 0, 2, "hz"))
+
+  params:add_control("bridge_end_hz", "end hz",
+    controlspec.new(20, 500, "exp", 0, 110, "hz"))
+
+  params:add_control("bridge_duration", "duration",
+    controlspec.new(0.5, 30, "exp", 0, 4, "s"))
+
+  params:add_option("bridge_curve", "curve", {"linear", "exponential", "logarithmic"}, 2)
+
+  params:add_option("bridge_direction", "direction", {"up (rhythm>pitch)", "down (pitch>rhythm)"}, 1)
+
+  params:add_trigger("bridge_trigger", "trigger bridge")
+  params:set_action("bridge_trigger", function()
+    trigger_bridge()
   end)
 
   -- Connect MIDI
@@ -678,8 +703,63 @@ function demo_loop()
   end
 end
 
+-- Time-scale bridging functions
+function trigger_bridge()
+  -- Cancel any existing bridge
+  if bridge_clock then
+    clock.cancel(bridge_clock)
+  end
+
+  bridge_active = true
+  bridge_clock = clock.run(function()
+    local start_hz = params:get("bridge_start_hz")
+    local end_hz = params:get("bridge_end_hz")
+    local duration = params:get("bridge_duration")
+    local curve = params:get("bridge_curve")
+    local direction = params:get("bridge_direction")
+
+    -- Swap for downward direction
+    if direction == 2 then
+      start_hz, end_hz = end_hz, start_hz
+    end
+
+    local steps = math.floor(duration * 30)  -- 30 updates per second
+    local step_time = duration / steps
+
+    for i = 0, steps do
+      local t = i / steps  -- 0 to 1
+
+      local hz
+      if curve == 1 then  -- linear
+        hz = start_hz + (end_hz - start_hz) * t
+      elseif curve == 2 then  -- exponential
+        hz = start_hz * math.pow(end_hz / start_hz, t)
+      else  -- logarithmic
+        local log_start = math.log(start_hz)
+        local log_end = math.log(end_hz)
+        hz = math.exp(log_start + (log_end - log_start) * (1 - math.pow(1 - t, 2)))
+      end
+
+      engine.hz(hz)
+      clock.sleep(step_time)
+    end
+
+    bridge_active = false
+    bridge_clock = nil
+  end)
+end
+
+function stop_bridge()
+  if bridge_clock then
+    clock.cancel(bridge_clock)
+    bridge_clock = nil
+  end
+  bridge_active = false
+end
+
 function cleanup()
   stop_demo()
+  stop_bridge()
   if redraw_clock then
     clock.cancel(redraw_clock)
   end
