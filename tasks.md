@@ -67,5 +67,10 @@ Exposed norns' built-in reverb controls through script parameters: reverb mix (d
 ## 9. Polyphony
 Multiple simultaneous voices with voice allocation. Enables chords and overlapping notes. Requires voice group management in the SC engine and note stealing/allocation logic in Lua.
 
+###IMPLEMENTATION DETAILS:
+Added 4-voice polyphony with voice allocation in the SuperCollider engine. Voice management uses three arrays: `voices` (synth instances), `voiceNotes` (MIDI note for each voice), and `voiceAges` (counter for voice stealing). The `noteOn` command finds a free voice or steals the oldest voice when all are in use. The `noteOff` command now takes a note number argument to release the correct voice in poly mode. Amplitude is scaled by `1/sqrt(numVoices)` in poly mode to prevent clipping when playing chords. A `polyMode` command toggles between mono (0) and poly (1) modes, releasing all voices when switching. Lua script adds mode parameter under "polyphony" separator.
+
+**Performance Impact:** MODERATE-HIGH. In poly mode with 4 voices playing simultaneously, CPU usage is approximately 4x the single-voice usage. Combined with multi-formant mode (3 formants), this could stress RPi4 significantly (12x base CPU). Recommend using single formant mode when playing polyphonic chords, or limiting to 2-voice chords with multi-formant. The amplitude scaling prevents audio clipping but reduces overall volume.
+
 ## 10. Portamento/glide
 Smooth pitch transitions between MIDI notes instead of instant jumps. Just a `Lag` on `hz` in the SynthDef with a controllable glide time. Subtle but expressive for melodic playing.

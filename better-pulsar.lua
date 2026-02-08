@@ -364,6 +364,14 @@ function init()
   -- Initialize LFOs
   init_lfos()
 
+  -- Polyphony parameters
+  params:add_separator("polyphony")
+
+  params:add_option("poly_mode", "mode", {"mono", "poly (4 voices)"}, 1)
+  params:set_action("poly_mode", function(v)
+    engine.polyMode(v - 1)
+  end)
+
   -- Reverb parameters (uses norns built-in reverb)
   params:add_separator("reverb")
 
@@ -420,8 +428,12 @@ function midi_event(data)
     engine.noteOn(msg.note, msg.vel)
 
   elseif msg.type == "note_off" then
-    if msg.note == current_note then
-      engine.noteOff()
+    -- In poly mode, always send noteOff with note number
+    -- In mono mode, only release if it's the held note
+    if params:get("poly_mode") == 2 then
+      engine.noteOff(msg.note)
+    elseif msg.note == current_note then
+      engine.noteOff(msg.note)
       current_note = nil
     end
 
@@ -772,7 +784,8 @@ function stop_demo()
     clock.cancel(demo_clock)
     demo_clock = nil
   end
-  engine.noteOff()
+  -- Release all notes (use 0 as dummy note in mono mode)
+  engine.noteOff(current_note or 0)
   current_note = nil
 end
 
@@ -794,7 +807,7 @@ function demo_loop()
       clock.sleep(note_duration)
 
       -- Note off
-      engine.noteOff()
+      engine.noteOff(step.note)
       current_note = nil
 
       -- Wait remaining step time

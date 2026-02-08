@@ -8,6 +8,13 @@ Engine_BetterPulsar : CroneEngine {
     var <windowBufs;
     var <sampleBuf;  // Buffer for loaded sample pulsaret
 
+    // Polyphony
+    var <voices;        // Array of synth instances
+    var <voiceNotes;    // Note number for each voice
+    var <voiceAges;     // Age counter for voice stealing
+    var <numVoices;
+    var <voiceCounter;
+
     // Stored parameter state (persists across noteOn/noteOff)
     var pFormantHz, pAmp, pPan, pPulsaret, pWindow;
     var pDutyCycle, pUseDutyCycle, pMasking, pAttack, pRelease;
@@ -17,6 +24,8 @@ Engine_BetterPulsar : CroneEngine {
     var pUseSample, pSampleRate;
     // Burst masking parameters
     var pBurstOn, pBurstOff, pUseBurst;
+    // Polyphony parameters
+    var pPolyMode, pGlide;
 
     *new { arg context, doneCallback;
         ^super.new(context, doneCallback);
@@ -476,45 +485,133 @@ Engine_BetterPulsar : CroneEngine {
         pBurstOn = 4;
         pBurstOff = 2;
         pUseBurst = 0;
+        // Polyphony defaults
+        pPolyMode = 0;  // 0 = mono, 1 = poly
+        pGlide = 0.0;
+        numVoices = 4;
+        voices = Array.fill(numVoices, { nil });
+        voiceNotes = Array.fill(numVoices, { -1 });
+        voiceAges = Array.fill(numVoices, { 0 });
+        voiceCounter = 0;
 
         // Commands
         this.addCommand(\noteOn, "ff", { arg msg;
             var note = msg[1];
             var vel = msg[2];
-            var synthName;
+            var synthName, voiceIdx, newSynth;
+
             // Select synth based on mode
             synthName = case
                 { pUseSample > 0 } { \betterPulsarSample }
                 { pFormantCount > 1 } { \betterPulsarMulti }
                 { true } { \betterPulsar };
-            if(synth.notNil, { synth.set(\gate, 0) });
-            synth = Synth(synthName, [
-                \out, context.out_b,
-                \hz, note.midicps,
-                \formantHz, pFormantHz,
-                \formant2Hz, pFormant2Hz,
-                \formant3Hz, pFormant3Hz,
-                \amp, vel / 127 * 0.7,
-                \pan, pPan,
-                \pan2, pPan2,
-                \pan3, pPan3,
-                \formantCount, pFormantCount,
-                \pulsaret, pPulsaret,
-                \window, pWindow,
-                \dutyCycle, pDutyCycle,
-                \useDutyCycle, pUseDutyCycle,
-                \masking, pMasking,
-                \attack, pAttack,
-                \release, pRelease,
-                \sampleRate, pSampleRate,
-                \burstOn, pBurstOn,
-                \burstOff, pBurstOff,
-                \useBurst, pUseBurst,
-                \gate, 1
-            ], context.xg);
+
+            if(pPolyMode == 0, {
+                // Mono mode
+                if(synth.notNil, { synth.set(\gate, 0) });
+                synth = Synth(synthName, [
+                    \out, context.out_b,
+                    \hz, note.midicps,
+                    \formantHz, pFormantHz,
+                    \formant2Hz, pFormant2Hz,
+                    \formant3Hz, pFormant3Hz,
+                    \amp, vel / 127 * 0.7,
+                    \pan, pPan,
+                    \pan2, pPan2,
+                    \pan3, pPan3,
+                    \formantCount, pFormantCount,
+                    \pulsaret, pPulsaret,
+                    \window, pWindow,
+                    \dutyCycle, pDutyCycle,
+                    \useDutyCycle, pUseDutyCycle,
+                    \masking, pMasking,
+                    \attack, pAttack,
+                    \release, pRelease,
+                    \sampleRate, pSampleRate,
+                    \burstOn, pBurstOn,
+                    \burstOff, pBurstOff,
+                    \useBurst, pUseBurst,
+                    \gate, 1
+                ], context.xg);
+            }, {
+                // Poly mode - find free voice or steal oldest
+                voiceIdx = nil;
+
+                // First, look for free voice
+                numVoices.do({ |i|
+                    if(voiceIdx.isNil && voiceNotes[i] == -1, {
+                        voiceIdx = i;
+                    });
+                });
+
+                // If no free voice, steal oldest (lowest age)
+                if(voiceIdx.isNil, {
+                    var minAge = inf;
+                    numVoices.do({ |i|
+                        if(voiceAges[i] < minAge, {
+                            minAge = voiceAges[i];
+                            voiceIdx = i;
+                        });
+                    });
+                    // Release stolen voice
+                    if(voices[voiceIdx].notNil, {
+                        voices[voiceIdx].set(\gate, 0);
+                    });
+                });
+
+                // Create new synth on this voice
+                voiceCounter = voiceCounter + 1;
+                voiceAges[voiceIdx] = voiceCounter;
+                voiceNotes[voiceIdx] = note;
+
+                newSynth = Synth(synthName, [
+                    \out, context.out_b,
+                    \hz, note.midicps,
+                    \formantHz, pFormantHz,
+                    \formant2Hz, pFormant2Hz,
+                    \formant3Hz, pFormant3Hz,
+                    \amp, vel / 127 * 0.7 / numVoices.sqrt,  // Scale amplitude for polyphony
+                    \pan, pPan,
+                    \pan2, pPan2,
+                    \pan3, pPan3,
+                    \formantCount, pFormantCount,
+                    \pulsaret, pPulsaret,
+                    \window, pWindow,
+                    \dutyCycle, pDutyCycle,
+                    \useDutyCycle, pUseDutyCycle,
+                    \masking, pMasking,
+                    \attack, pAttack,
+                    \release, pRelease,
+                    \sampleRate, pSampleRate,
+                    \burstOn, pBurstOn,
+                    \burstOff, pBurstOff,
+                    \useBurst, pUseBurst,
+                    \gate, 1
+                ], context.xg);
+                voices[voiceIdx] = newSynth;
+            });
         });
 
-        this.addCommand(\noteOff, "", { arg msg;
+        this.addCommand(\noteOff, "f", { arg msg;
+            var note = msg[1];
+            if(pPolyMode == 0, {
+                // Mono mode
+                if(synth.notNil, { synth.set(\gate, 0) });
+            }, {
+                // Poly mode - find and release voice playing this note
+                numVoices.do({ |i|
+                    if(voiceNotes[i] == note, {
+                        if(voices[i].notNil, {
+                            voices[i].set(\gate, 0);
+                        });
+                        voiceNotes[i] = -1;
+                    });
+                });
+            });
+        });
+
+        // Legacy noteOff without note argument (mono compatibility)
+        this.addCommand(\noteOffMono, "", { arg msg;
             if(synth.notNil, { synth.set(\gate, 0) });
         });
 
@@ -633,6 +730,22 @@ Engine_BetterPulsar : CroneEngine {
         this.addCommand(\useBurst, "i", { arg msg;
             pUseBurst = msg[1];
             if(synth.notNil, { synth.set(\useBurst, msg[1]) });
+        });
+
+        // Polyphony commands
+        this.addCommand(\polyMode, "i", { arg msg;
+            pPolyMode = msg[1];
+            // When switching modes, release all voices
+            if(synth.notNil, { synth.set(\gate, 0); synth = nil; });
+            numVoices.do({ |i|
+                if(voices[i].notNil, {
+                    voices[i].set(\gate, 0);
+                    voices[i] = nil;
+                });
+                voiceNotes[i] = -1;
+                voiceAges[i] = 0;
+            });
+            voiceCounter = 0;
         });
 
         // No initial synth — first noteOn creates it.
