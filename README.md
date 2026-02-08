@@ -128,7 +128,7 @@ When the fundamental frequency drops below 20 Hz, individual pulses become audib
 ## Parameters
 
 ### Pulsar Synthesis
-- **formant hz** (20-4000 Hz): Formant frequency
+- **formant hz** (20-8000 Hz): Formant frequency
 - **duty cycle** (0.01-1.0): Manual duty cycle
 - **duty mode**: Formant ratio or manual
 - **pulsaret** (0-9): Waveform with morphing
@@ -145,8 +145,8 @@ When the fundamental frequency drops below 20 Hz, individual pulses become audib
 
 ### Multi-Formant
 - **formant count** (1-3): Number of active formants
-- **formant 2 hz** (20-4000): Second formant frequency
-- **formant 3 hz** (20-4000): Third formant frequency
+- **formant 2 hz** (20-8000): Second formant frequency
+- **formant 3 hz** (20-8000): Third formant frequency
 - **pan 2** (-1 to 1): Second formant stereo position
 - **pan 3** (-1 to 1): Third formant stereo position
 

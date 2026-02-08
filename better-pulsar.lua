@@ -178,7 +178,7 @@ function init()
   params:add_separator("pulsar synthesis")
 
   params:add_control("formant_hz", "formant hz",
-    controlspec.new(20, 4000, "exp", 0, 440, "hz"))
+    controlspec.new(20, 8000, "exp", 0, 440, "hz"))
   params:set_action("formant_hz", function(v)
     -- Only send directly if LFO is not active (LFO handles modulated sending)
     if params:get("lfo_formant_enabled") ~= 2 then
@@ -279,13 +279,13 @@ function init()
   end)
 
   params:add_control("formant2_hz", "formant 2 hz",
-    controlspec.new(20, 4000, "exp", 0, 660, "hz"))
+    controlspec.new(20, 8000, "exp", 0, 660, "hz"))
   params:set_action("formant2_hz", function(v)
     engine.formant2Hz(v)
   end)
 
   params:add_control("formant3_hz", "formant 3 hz",
-    controlspec.new(20, 4000, "exp", 0, 880, "hz"))
+    controlspec.new(20, 8000, "exp", 0, 880, "hz"))
   params:set_action("formant3_hz", function(v)
     engine.formant3Hz(v)
   end)
@@ -599,8 +599,8 @@ function handle_cc(cc, val)
   local v = val / 127
 
   if cc == params:get("cc_formant") then
-    -- Map 0-127 to 20-4000 Hz exponentially
-    local hz = 20 * math.pow(200, v)
+    -- Map 0-127 to 20-8000 Hz exponentially
+    local hz = 20 * math.pow(400, v)
     params:set("formant_hz", hz)
 
   elseif cc == params:get("cc_duty") then
@@ -630,13 +630,13 @@ function handle_cc(cc, val)
     params:set("release", rel)
 
   elseif cc == params:get("cc_formant2") then
-    -- Map 0-127 to 20-4000 Hz exponentially
-    local hz = 20 * math.pow(200, v)
+    -- Map 0-127 to 20-8000 Hz exponentially
+    local hz = 20 * math.pow(400, v)
     params:set("formant2_hz", hz)
 
   elseif cc == params:get("cc_formant3") then
-    -- Map 0-127 to 20-4000 Hz exponentially
-    local hz = 20 * math.pow(200, v)
+    -- Map 0-127 to 20-8000 Hz exponentially
+    local hz = 20 * math.pow(400, v)
     params:set("formant3_hz", hz)
 
   elseif cc == params:get("cc_pan2") then
