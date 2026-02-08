@@ -27,6 +27,11 @@ ALREADY IMPLEMENTED prior to task list creation. The pulsaret parameter is conti
 ## 4. Time-scale bridging gestures
 Automated envelopes that sweep fp from infrasonic (<20 Hz) up into audio rate, so a rhythm accelerates into a pitched tone in a single gesture. This is pulsar synthesis's defining trick — revealing the continuum between rhythm and pitch that is normally hidden.
 
+###IMPLEMENTATION DETAILS:
+Added a Lua-based gesture system with configurable parameters: start frequency (0.5-20 Hz for audible pulses), end frequency (20-500 Hz for pitched tones), duration (0.5-30 seconds), curve type (linear/exponential/logarithmic), and direction (up or down). The bridge is triggered via params menu and runs a clock coroutine at 30Hz that smoothly updates the engine's hz parameter. Can be used while a note is held to transform a rhythmic pulse train into a sustained pitch. Exponential curve sounds most natural for pitch perception.
+
+**Performance Impact:** MINIMAL. The bridge runs in Lua as a clock coroutine at 30 updates/second, sending single OSC messages to the engine. No additional DSP overhead on RPi4.
+
 ## 5. Burst masking
 Regular on/off masking patterns (e.g., 4 pulsarets on, 2 silent) as described in Roads' Section 3.2. More structured and rhythmic than stochastic masking. Produces AM effects on the timbre and divides the fundamental by a subharmonic factor. Great for the rhythm-to-pitch crossover zone.
 
