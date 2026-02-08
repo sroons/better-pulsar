@@ -423,7 +423,12 @@ function init()
   -- Formant LFO
   params:add_option("lfo_formant_enabled", "formant lfo", {"off", "on"}, 1)
   params:set_action("lfo_formant_enabled", function(v)
-    if v == 2 then lfo_formant:start() else lfo_formant:stop() end
+    if v == 2 then
+      lfo_formant:start()
+    else
+      lfo_formant:stop()
+      engine.formantHz(params:get("formant_hz"))
+    end
   end)
   params:add_control("lfo_formant_rate", "formant lfo rate",
     controlspec.new(0.01, 10, "exp", 0, 0.5, "hz"))
@@ -436,7 +441,12 @@ function init()
   -- Duty cycle LFO
   params:add_option("lfo_duty_enabled", "duty lfo", {"off", "on"}, 1)
   params:set_action("lfo_duty_enabled", function(v)
-    if v == 2 then lfo_duty:start() else lfo_duty:stop() end
+    if v == 2 then
+      lfo_duty:start()
+    else
+      lfo_duty:stop()
+      engine.dutyCycle(params:get("duty_cycle"))
+    end
   end)
   params:add_control("lfo_duty_rate", "duty lfo rate",
     controlspec.new(0.01, 10, "exp", 0, 0.25, "hz"))
@@ -449,7 +459,12 @@ function init()
   -- Masking LFO
   params:add_option("lfo_masking_enabled", "masking lfo", {"off", "on"}, 1)
   params:set_action("lfo_masking_enabled", function(v)
-    if v == 2 then lfo_masking:start() else lfo_masking:stop() end
+    if v == 2 then
+      lfo_masking:start()
+    else
+      lfo_masking:stop()
+      engine.masking(params:get("masking"))
+    end
   end)
   params:add_control("lfo_masking_rate", "masking lfo rate",
     controlspec.new(0.01, 10, "exp", 0, 0.1, "hz"))
@@ -462,7 +477,12 @@ function init()
   -- Pan LFO
   params:add_option("lfo_pan_enabled", "pan lfo", {"off", "on"}, 1)
   params:set_action("lfo_pan_enabled", function(v)
-    if v == 2 then lfo_pan:start() else lfo_pan:stop() end
+    if v == 2 then
+      lfo_pan:start()
+    else
+      lfo_pan:stop()
+      engine.pan(params:get("pan"))
+    end
   end)
   params:add_control("lfo_pan_rate", "pan lfo rate",
     controlspec.new(0.01, 10, "exp", 0, 0.2, "hz"))
