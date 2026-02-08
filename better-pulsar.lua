@@ -526,12 +526,14 @@ function midi_event(data)
   if msg.ch ~= ch then return end
 
   if msg.type == "note_on" then
+    print(string.format("MIDI note_on: %d vel:%d", msg.note, msg.vel))
     current_note = msg.note
     note_hz = musicutil.note_num_to_freq(msg.note)
     velocity = msg.vel
     engine.noteOn(msg.note, msg.vel)
 
   elseif msg.type == "note_off" then
+    print(string.format("MIDI note_off: %d", msg.note))
     -- In poly mode, always send noteOff with note number
     -- In mono mode, only release if it's the held note
     if params:get("poly_mode") == 2 then
@@ -542,6 +544,7 @@ function midi_event(data)
     end
 
   elseif msg.type == "cc" then
+    print(string.format("MIDI cc: %d val:%d", msg.cc, msg.val))
     handle_cc(msg.cc, msg.val)
   end
 end
