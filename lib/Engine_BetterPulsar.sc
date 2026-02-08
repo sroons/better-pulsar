@@ -1,0 +1,350 @@
+// Engine_BetterPulsar
+// Pulsar synthesis engine for Norns
+// Based on Curtis Roads' pulsar synthesis techniques
+
+Engine_BetterPulsar : CroneEngine {
+    var <synth;
+    var <pulsaretBufs;
+    var <windowBufs;
+
+    // Stored parameter state (persists across noteOn/noteOff)
+    var pFormantHz, pAmp, pPan, pPulsaret, pWindow;
+    var pDutyCycle, pUseDutyCycle, pMasking, pAttack, pRelease;
+
+    *new { arg context, doneCallback;
+        ^super.new(context, doneCallback);
+    }
+
+    alloc {
+        var server = context.server;
+        var numSamples = 2048;
+
+        // Pre-allocate buffers for pulsaret waveforms
+        pulsaretBufs = Array.fill(10, { Buffer.alloc(server, numSamples, 1) });
+
+        // Pre-allocate buffers for window functions
+        windowBufs = Array.fill(5, { Buffer.alloc(server, numSamples, 1) });
+
+        server.sync;
+
+        // Fill pulsaret buffers
+        // 0: Single sine
+        pulsaretBufs[0].sine1([1.0]);
+
+        // 1: Two sine cycles
+        pulsaretBufs[1].sine1([0, 1.0]);
+
+        // 2: Three sine cycles
+        pulsaretBufs[2].sine1([0, 0, 1.0]);
+
+        // 3: Sinc function (bandlimited impulse)
+        pulsaretBufs[3].loadCollection(Array.fill(numSamples, { |i|
+            var x = (i - (numSamples/2)) / (numSamples/16);
+            if(x == 0, { 1.0 }, { sin(pi * x) / (pi * x) });
+        }));
+
+        // 4: Triangle
+        pulsaretBufs[4].loadCollection(Array.fill(numSamples, { |i|
+            var phase = i / numSamples;
+            if(phase < 0.5, { phase * 2 }, { 2 - (phase * 2) }) * 2 - 1;
+        }));
+
+        // 5: Sawtooth
+        pulsaretBufs[5].loadCollection(Array.fill(numSamples, { |i|
+            (i / numSamples) * 2 - 1;
+        }));
+
+        // 6: Square
+        pulsaretBufs[6].loadCollection(Array.fill(numSamples, { |i|
+            if((i / numSamples) < 0.5, { 1.0 }, { -1.0 });
+        }));
+
+        // 7: Formant (vocal-like, sum of 3 sine partials)
+        pulsaretBufs[7].loadCollection(Array.fill(numSamples, { |i|
+            var phase = i / numSamples * 2pi;
+            (sin(phase) + (0.5 * sin(2 * phase)) + (0.25 * sin(3 * phase))) / 1.75;
+        }));
+
+        // 8: Pulse (narrow, 25% duty)
+        pulsaretBufs[8].loadCollection(Array.fill(numSamples, { |i|
+            if((i / numSamples) < 0.25, { 1.0 }, { -1.0 });
+        }));
+
+        // 9: Noise burst (random values, same each load)
+        thisThread.randSeed = 12345;
+        pulsaretBufs[9].loadCollection(Array.fill(numSamples, { 1.0.rand2 }));
+
+        server.sync;
+
+        // Fill window buffers
+        // 0: Rectangular (no window)
+        windowBufs[0].loadCollection(Array.fill(numSamples, { 1.0 }));
+
+        // 1: Gaussian
+        windowBufs[1].loadCollection(Array.fill(numSamples, { |i|
+            var x = (i - (numSamples/2)) / (numSamples/4);
+            exp(-0.5 * x * x);
+        }));
+
+        // 2: Hann
+        windowBufs[2].loadCollection(Signal.hanningWindow(numSamples));
+
+        // 3: Exponential decay
+        windowBufs[3].loadCollection(Array.fill(numSamples, { |i|
+            var phase = i / numSamples;
+            exp(-4 * phase);
+        }));
+
+        // 4: Linear decay
+        windowBufs[4].loadCollection(Array.fill(numSamples, { |i|
+            1 - (i / numSamples);
+        }));
+
+        server.sync;
+
+        // Main pulsar synth
+        SynthDef(\betterPulsar, {
+            arg out = 0,
+                hz = 110,           // fundamental frequency
+                formantHz = 440,    // formant frequency
+                amp = 0.5,
+                pan = 0,
+                gate = 1,
+                pulsaret = 0,       // pulsaret waveform index (0-4)
+                window = 1,         // window function index (0-4)
+                dutyCycle = 0.5,    // manual duty cycle override (0-1)
+                useDutyCycle = 0,   // 0 = use formant, 1 = use manual duty cycle
+                masking = 0,        // probability of pulse omission (0-1)
+                maskSeed = 0,       // seed for masking randomness
+                attack = 0.001,
+                release = 0.1;
+
+            var trig, phase, pulsaretPhase, pulsaretLen, pulsaretSig, windowSig;
+            var period, actualDuty, silenceRatio, inPulsaret;
+            var mask, masked, env, sig;
+            var pulsaretBufNum, windowBufNum;
+            var pulsaretIdx1, pulsaretIdx2, pulsaretMix;
+            var pulsaretSig1, pulsaretSig2;
+            var pulsaretBufNum1, pulsaretBufNum2;
+            var windowIdx1, windowIdx2, windowMix;
+            var windowSig1, windowSig2;
+            var windowBufNum1, windowBufNum2;
+
+            // Calculate period and duty cycle
+            period = hz.reciprocal;
+
+            // Duty cycle: either from formant ratio or manual
+            actualDuty = Select.kr(useDutyCycle, [
+                (hz / formantHz).clip(0.01, 1.0),  // formant-derived
+                dutyCycle.clip(0.01, 1.0)          // manual
+            ]);
+
+            // Main phase (0-1 over one period at fundamental freq)
+            phase = Phasor.ar(0, hz * SampleDur.ir, 0, 1);
+
+            // Trigger at start of each cycle
+            trig = Trig1.ar(phase < 0.01, SampleDur.ir);
+
+            // Masking: randomly omit pulses
+            mask = TRand.ar(0, 1, trig) > masking;
+
+            // Determine if we're in the pulsaret portion of the cycle
+            inPulsaret = phase < actualDuty;
+
+            // Phase within the pulsaret (0-1), only advances during pulsaret portion
+            pulsaretPhase = (phase / actualDuty).clip(0, 0.999);
+
+            // Select buffers with crossfade for pulsaret
+            // Calculate crossfade between adjacent waveforms
+            pulsaretIdx1 = pulsaret.floor.clip(0, 9);
+            pulsaretIdx2 = (pulsaretIdx1 + 1).clip(0, 9);
+            pulsaretMix = pulsaret.frac;
+
+            pulsaretBufNum1 = Select.kr(pulsaretIdx1, pulsaretBufs.collect(_.bufnum));
+            pulsaretBufNum2 = Select.kr(pulsaretIdx2, pulsaretBufs.collect(_.bufnum));
+
+            // Calculate crossfade between adjacent windows
+            windowIdx1 = window.floor.clip(0, 4);
+            windowIdx2 = (windowIdx1 + 1).clip(0, 4);
+            windowMix = window.frac;
+
+            windowBufNum1 = Select.kr(windowIdx1, windowBufs.collect(_.bufnum));
+            windowBufNum2 = Select.kr(windowIdx2, windowBufs.collect(_.bufnum));
+
+            // Read from both pulsaret buffers and crossfade
+            pulsaretSig1 = BufRd.ar(1, pulsaretBufNum1, pulsaretPhase * BufFrames.kr(pulsaretBufNum1), 1, 4);
+            pulsaretSig2 = BufRd.ar(1, pulsaretBufNum2, pulsaretPhase * BufFrames.kr(pulsaretBufNum2), 1, 4);
+            pulsaretSig = LinXFade2.ar(pulsaretSig1, pulsaretSig2, pulsaretMix * 2 - 1);
+
+            // Read from both window buffers and crossfade
+            windowSig1 = BufRd.ar(1, windowBufNum1, pulsaretPhase * BufFrames.kr(windowBufNum1), 1, 4);
+            windowSig2 = BufRd.ar(1, windowBufNum2, pulsaretPhase * BufFrames.kr(windowBufNum2), 1, 4);
+            windowSig = LinXFade2.ar(windowSig1, windowSig2, windowMix * 2 - 1);
+
+            // Apply window to pulsaret
+            sig = pulsaretSig * windowSig;
+
+            // Gate during silence portion
+            sig = sig * inPulsaret;
+
+            // Apply masking
+            sig = sig * Lag.ar(mask, 0.001);
+
+            // Amplitude envelope
+            env = EnvGen.ar(Env.asr(attack, 1, release), gate, doneAction: 2);
+
+            // Final output
+            sig = sig * env * amp;
+
+            // DC blocking
+            sig = LeakDC.ar(sig);
+
+            // Soft clip for safety
+            sig = (sig * 0.8).tanh;
+
+            Out.ar(out, Pan2.ar(sig, pan));
+        }).add;
+
+        // Simpler, more efficient pulsar synth for when CPU is constrained
+        SynthDef(\betterPulsarLite, {
+            arg out = 0,
+                hz = 110,
+                formantHz = 440,
+                amp = 0.5,
+                pan = 0,
+                gate = 1,
+                window = 1,
+                masking = 0;
+
+            var trig, phase, duty, inPulsaret;
+            var pulsaretPhase, sig, windowSig, mask, env;
+            var windowBufNum;
+
+            duty = (hz / formantHz).clip(0.01, 1.0);
+            phase = Phasor.ar(0, hz * SampleDur.ir, 0, 1);
+            trig = Trig1.ar(phase < 0.01, SampleDur.ir);
+
+            mask = TRand.ar(0, 1, trig) > masking;
+            inPulsaret = phase < duty;
+            pulsaretPhase = (phase / duty).clip(0, 0.999);
+
+            // Simple sine pulsaret
+            sig = SinOsc.ar(0, pulsaretPhase * 2pi);
+
+            // Window from buffer
+            windowBufNum = Select.kr(window.round, windowBufs.collect(_.bufnum));
+            windowSig = BufRd.ar(1, windowBufNum, pulsaretPhase * BufFrames.kr(windowBufNum), 1, 4);
+
+            sig = sig * windowSig * inPulsaret * Lag.ar(mask, 0.001);
+
+            env = EnvGen.ar(Env.asr(0.001, 1, 0.1), gate, doneAction: 2);
+            sig = LeakDC.ar(sig * env * amp).tanh;
+
+            Out.ar(out, Pan2.ar(sig, pan));
+        }).add;
+
+        server.sync;
+
+        // Initialize parameter defaults
+        pFormantHz = 440;
+        pAmp = 0.5;
+        pPan = 0;
+        pPulsaret = 0;
+        pWindow = 1;
+        pDutyCycle = 0.5;
+        pUseDutyCycle = 0;
+        pMasking = 0;
+        pAttack = 0.001;
+        pRelease = 0.1;
+
+        // Commands
+        this.addCommand(\noteOn, "ff", { arg msg;
+            var note = msg[1];
+            var vel = msg[2];
+            if(synth.notNil, { synth.set(\gate, 0) });
+            synth = Synth(\betterPulsar, [
+                \out, context.out_b,
+                \hz, note.midicps,
+                \formantHz, pFormantHz,
+                \amp, vel / 127 * 0.7,
+                \pan, pPan,
+                \pulsaret, pPulsaret,
+                \window, pWindow,
+                \dutyCycle, pDutyCycle,
+                \useDutyCycle, pUseDutyCycle,
+                \masking, pMasking,
+                \attack, pAttack,
+                \release, pRelease,
+                \gate, 1
+            ], context.xg);
+        });
+
+        this.addCommand(\noteOff, "", { arg msg;
+            if(synth.notNil, { synth.set(\gate, 0) });
+        });
+
+        this.addCommand(\hz, "f", { arg msg;
+            if(synth.notNil, { synth.set(\hz, msg[1]) });
+        });
+
+        this.addCommand(\formantHz, "f", { arg msg;
+            pFormantHz = msg[1];
+            if(synth.notNil, { synth.set(\formantHz, msg[1]) });
+        });
+
+        this.addCommand(\amp, "f", { arg msg;
+            pAmp = msg[1];
+            if(synth.notNil, { synth.set(\amp, msg[1]) });
+        });
+
+        this.addCommand(\pan, "f", { arg msg;
+            pPan = msg[1];
+            if(synth.notNil, { synth.set(\pan, msg[1]) });
+        });
+
+        this.addCommand(\pulsaret, "f", { arg msg;
+            pPulsaret = msg[1];
+            if(synth.notNil, { synth.set(\pulsaret, msg[1]) });
+        });
+
+        this.addCommand(\window, "f", { arg msg;
+            pWindow = msg[1];
+            if(synth.notNil, { synth.set(\window, msg[1]) });
+        });
+
+        this.addCommand(\dutyCycle, "f", { arg msg;
+            pDutyCycle = msg[1];
+            if(synth.notNil, { synth.set(\dutyCycle, msg[1]) });
+        });
+
+        this.addCommand(\useDutyCycle, "i", { arg msg;
+            pUseDutyCycle = msg[1];
+            if(synth.notNil, { synth.set(\useDutyCycle, msg[1]) });
+        });
+
+        this.addCommand(\masking, "f", { arg msg;
+            pMasking = msg[1];
+            if(synth.notNil, { synth.set(\masking, msg[1]) });
+        });
+
+        this.addCommand(\attack, "f", { arg msg;
+            pAttack = msg[1];
+            if(synth.notNil, { synth.set(\attack, msg[1]) });
+        });
+
+        this.addCommand(\release, "f", { arg msg;
+            pRelease = msg[1];
+            if(synth.notNil, { synth.set(\release, msg[1]) });
+        });
+
+        // No initial synth — first noteOn creates it.
+        // params:bang() in Lua will store values here via commands above.
+        synth = nil;
+    }
+
+    free {
+        if(synth.notNil, { synth.free });
+        pulsaretBufs.do({ |buf| buf.free });
+        windowBufs.do({ |buf| buf.free });
+    }
+}
