@@ -123,6 +123,22 @@ function init()
     engine.masking(v)
   end)
 
+  -- Burst masking
+  params:add_option("use_burst", "masking mode", {"stochastic", "burst"}, 1)
+  params:set_action("use_burst", function(v)
+    engine.useBurst(v - 1)
+  end)
+
+  params:add_number("burst_on", "burst on", 1, 16, 4)
+  params:set_action("burst_on", function(v)
+    engine.burstOn(v)
+  end)
+
+  params:add_number("burst_off", "burst off", 1, 16, 2)
+  params:set_action("burst_off", function(v)
+    engine.burstOff(v)
+  end)
+
   params:add_control("pan", "pan",
     controlspec.new(-1.0, 1.0, "lin", 0.01, 0, ""))
   params:set_action("pan", function(v)

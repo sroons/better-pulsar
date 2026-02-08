@@ -15,6 +15,8 @@ Engine_BetterPulsar : CroneEngine {
     var pFormant2Hz, pFormant3Hz, pPan2, pPan3, pFormantCount;
     // Sample convolution parameters
     var pUseSample, pSampleRate;
+    // Burst masking parameters
+    var pBurstOn, pBurstOff, pUseBurst;
 
     *new { arg context, doneCallback;
         ^super.new(context, doneCallback);
@@ -125,11 +127,14 @@ Engine_BetterPulsar : CroneEngine {
                 masking = 0,        // probability of pulse omission (0-1)
                 maskSeed = 0,       // seed for masking randomness
                 attack = 0.001,
-                release = 0.1;
+                release = 0.1,
+                burstOn = 4,        // pulses on in burst pattern
+                burstOff = 2,       // pulses off in burst pattern
+                useBurst = 0;       // 0 = stochastic masking, 1 = burst masking
 
             var trig, phase, pulsaretPhase, pulsaretLen, pulsaretSig, windowSig;
             var period, actualDuty, silenceRatio, inPulsaret;
-            var mask, masked, env, sig;
+            var mask, burstMask, stochasticMask, env, sig;
             var pulsaretBufNum, windowBufNum;
             var pulsaretIdx1, pulsaretIdx2, pulsaretMix;
             var pulsaretSig1, pulsaretSig2;
@@ -137,6 +142,7 @@ Engine_BetterPulsar : CroneEngine {
             var windowIdx1, windowIdx2, windowMix;
             var windowSig1, windowSig2;
             var windowBufNum1, windowBufNum2;
+            var pulseCount, burstPeriod, burstPhase;
 
             // Calculate period and duty cycle
             period = hz.reciprocal;
@@ -153,8 +159,16 @@ Engine_BetterPulsar : CroneEngine {
             // Trigger at start of each cycle
             trig = Trig1.ar(phase < 0.01, SampleDur.ir);
 
-            // Masking: randomly omit pulses
-            mask = TRand.ar(0, 1, trig) > masking;
+            // Masking: stochastic or burst pattern
+            stochasticMask = TRand.ar(0, 1, trig) > masking;
+
+            // Burst masking: count pulses and create on/off pattern
+            burstPeriod = burstOn + burstOff;
+            pulseCount = PulseCount.ar(trig) % burstPeriod;
+            burstMask = pulseCount < burstOn;
+
+            // Select masking mode
+            mask = Select.ar(useBurst, [stochasticMask, burstMask]);
 
             // Determine if we're in the pulsaret portion of the cycle
             inPulsaret = phase < actualDuty;
@@ -232,6 +246,9 @@ Engine_BetterPulsar : CroneEngine {
                 dutyCycle = 0.5,
                 useDutyCycle = 0,
                 masking = 0,
+                burstOn = 4,
+                burstOff = 2,
+                useBurst = 0,
                 attack = 0.001,
                 release = 0.1;
 
@@ -241,10 +258,18 @@ Engine_BetterPulsar : CroneEngine {
             var pulsaretBufNum1, pulsaretBufNum2;
             var windowIdx1, windowIdx2, windowMix;
             var windowBufNum1, windowBufNum2;
+            var stochasticMask, burstMask, mask, pulseCount, burstPeriod;
 
             // Shared phase at fundamental frequency
             phase = Phasor.ar(0, hz * SampleDur.ir, 0, 1);
             trig = Trig1.ar(phase < 0.01, SampleDur.ir);
+
+            // Masking with burst support
+            stochasticMask = TRand.ar(0, 1, trig) > masking;
+            burstPeriod = burstOn + burstOff;
+            pulseCount = PulseCount.ar(trig) % burstPeriod;
+            burstMask = pulseCount < burstOn;
+            mask = Select.ar(useBurst, [stochasticMask, burstMask]);
 
             // Buffer selection (shared across formants)
             pulsaretIdx1 = pulsaret.floor.clip(0, 9);
@@ -261,50 +286,47 @@ Engine_BetterPulsar : CroneEngine {
 
             // Helper function for generating one formant
             sig1 = {
-                var duty, inPulsaret, pulsaretPhase, pSig, pSig1, pSig2, wSig, wSig1, wSig2, mask, sig;
+                var duty, inPulsaret, pulsaretPhase, pSig, pSig1, pSig2, wSig, wSig1, wSig2, sig;
                 duty = Select.kr(useDutyCycle, [(hz / formantHz).clip(0.01, 1.0), dutyCycle.clip(0.01, 1.0)]);
                 inPulsaret = phase < duty;
                 pulsaretPhase = (phase / duty).clip(0, 0.999);
-                mask = Lag.ar(TRand.ar(0, 1, trig) > masking, 0.001);
                 pSig1 = BufRd.ar(1, pulsaretBufNum1, pulsaretPhase * BufFrames.kr(pulsaretBufNum1), 1, 4);
                 pSig2 = BufRd.ar(1, pulsaretBufNum2, pulsaretPhase * BufFrames.kr(pulsaretBufNum2), 1, 4);
                 pSig = LinXFade2.ar(pSig1, pSig2, pulsaretMix * 2 - 1);
                 wSig1 = BufRd.ar(1, windowBufNum1, pulsaretPhase * BufFrames.kr(windowBufNum1), 1, 4);
                 wSig2 = BufRd.ar(1, windowBufNum2, pulsaretPhase * BufFrames.kr(windowBufNum2), 1, 4);
                 wSig = LinXFade2.ar(wSig1, wSig2, windowMix * 2 - 1);
-                sig = pSig * wSig * inPulsaret * mask;
+                sig = pSig * wSig * inPulsaret * Lag.ar(mask, 0.001);
                 Pan2.ar(sig, pan);
             }.value;
 
             sig2 = {
-                var duty, inPulsaret, pulsaretPhase, pSig, pSig1, pSig2, wSig, wSig1, wSig2, mask, sig;
+                var duty, inPulsaret, pulsaretPhase, pSig, pSig1, pSig2, wSig, wSig1, wSig2, sig;
                 duty = Select.kr(useDutyCycle, [(hz / formant2Hz).clip(0.01, 1.0), dutyCycle.clip(0.01, 1.0)]);
                 inPulsaret = phase < duty;
                 pulsaretPhase = (phase / duty).clip(0, 0.999);
-                mask = Lag.ar(TRand.ar(0, 1, trig) > masking, 0.001);
                 pSig1 = BufRd.ar(1, pulsaretBufNum1, pulsaretPhase * BufFrames.kr(pulsaretBufNum1), 1, 4);
                 pSig2 = BufRd.ar(1, pulsaretBufNum2, pulsaretPhase * BufFrames.kr(pulsaretBufNum2), 1, 4);
                 pSig = LinXFade2.ar(pSig1, pSig2, pulsaretMix * 2 - 1);
                 wSig1 = BufRd.ar(1, windowBufNum1, pulsaretPhase * BufFrames.kr(windowBufNum1), 1, 4);
                 wSig2 = BufRd.ar(1, windowBufNum2, pulsaretPhase * BufFrames.kr(windowBufNum2), 1, 4);
                 wSig = LinXFade2.ar(wSig1, wSig2, windowMix * 2 - 1);
-                sig = pSig * wSig * inPulsaret * mask;
+                sig = pSig * wSig * inPulsaret * Lag.ar(mask, 0.001);
                 Pan2.ar(sig, pan2) * (formantCount >= 2);
             }.value;
 
             sig3 = {
-                var duty, inPulsaret, pulsaretPhase, pSig, pSig1, pSig2, wSig, wSig1, wSig2, mask, sig;
+                var duty, inPulsaret, pulsaretPhase, pSig, pSig1, pSig2, wSig, wSig1, wSig2, sig;
                 duty = Select.kr(useDutyCycle, [(hz / formant3Hz).clip(0.01, 1.0), dutyCycle.clip(0.01, 1.0)]);
                 inPulsaret = phase < duty;
                 pulsaretPhase = (phase / duty).clip(0, 0.999);
-                mask = Lag.ar(TRand.ar(0, 1, trig) > masking, 0.001);
                 pSig1 = BufRd.ar(1, pulsaretBufNum1, pulsaretPhase * BufFrames.kr(pulsaretBufNum1), 1, 4);
                 pSig2 = BufRd.ar(1, pulsaretBufNum2, pulsaretPhase * BufFrames.kr(pulsaretBufNum2), 1, 4);
                 pSig = LinXFade2.ar(pSig1, pSig2, pulsaretMix * 2 - 1);
                 wSig1 = BufRd.ar(1, windowBufNum1, pulsaretPhase * BufFrames.kr(windowBufNum1), 1, 4);
                 wSig2 = BufRd.ar(1, windowBufNum2, pulsaretPhase * BufFrames.kr(windowBufNum2), 1, 4);
                 wSig = LinXFade2.ar(wSig1, wSig2, windowMix * 2 - 1);
-                sig = pSig * wSig * inPulsaret * mask;
+                sig = pSig * wSig * inPulsaret * Lag.ar(mask, 0.001);
                 Pan2.ar(sig, pan3) * (formantCount >= 3);
             }.value;
 
@@ -337,6 +359,9 @@ Engine_BetterPulsar : CroneEngine {
                 dutyCycle = 0.5,
                 useDutyCycle = 0,
                 masking = 0,
+                burstOn = 4,
+                burstOff = 2,
+                useBurst = 0,
                 attack = 0.001,
                 release = 0.1,
                 sampleRate = 1.0;  // Playback rate multiplier
@@ -344,7 +369,8 @@ Engine_BetterPulsar : CroneEngine {
             var phase, trig, actualDuty, inPulsaret, pulsaretPhase;
             var sampleSig, windowSig, windowSig1, windowSig2;
             var windowIdx1, windowIdx2, windowMix, windowBufNum1, windowBufNum2;
-            var mask, env, sig;
+            var stochasticMask, burstMask, mask, pulseCount, burstPeriod;
+            var env, sig;
             var sampleFrames, samplePhase;
 
             actualDuty = Select.kr(useDutyCycle, [
@@ -354,7 +380,13 @@ Engine_BetterPulsar : CroneEngine {
 
             phase = Phasor.ar(0, hz * SampleDur.ir, 0, 1);
             trig = Trig1.ar(phase < 0.01, SampleDur.ir);
-            mask = Lag.ar(TRand.ar(0, 1, trig) > masking, 0.001);
+
+            // Masking with burst support
+            stochasticMask = TRand.ar(0, 1, trig) > masking;
+            burstPeriod = burstOn + burstOff;
+            pulseCount = PulseCount.ar(trig) % burstPeriod;
+            burstMask = pulseCount < burstOn;
+            mask = Lag.ar(Select.ar(useBurst, [stochasticMask, burstMask]), 0.001);
             inPulsaret = phase < actualDuty;
             pulsaretPhase = (phase / actualDuty).clip(0, 0.999);
 
@@ -440,6 +472,10 @@ Engine_BetterPulsar : CroneEngine {
         // Sample defaults
         pUseSample = 0;
         pSampleRate = 1.0;
+        // Burst defaults
+        pBurstOn = 4;
+        pBurstOff = 2;
+        pUseBurst = 0;
 
         // Commands
         this.addCommand(\noteOn, "ff", { arg msg;
@@ -471,6 +507,9 @@ Engine_BetterPulsar : CroneEngine {
                 \attack, pAttack,
                 \release, pRelease,
                 \sampleRate, pSampleRate,
+                \burstOn, pBurstOn,
+                \burstOff, pBurstOff,
+                \useBurst, pUseBurst,
                 \gate, 1
             ], context.xg);
         });
@@ -578,6 +617,22 @@ Engine_BetterPulsar : CroneEngine {
         this.addCommand(\sampleRate, "f", { arg msg;
             pSampleRate = msg[1];
             if(synth.notNil, { synth.set(\sampleRate, msg[1]) });
+        });
+
+        // Burst masking commands
+        this.addCommand(\burstOn, "i", { arg msg;
+            pBurstOn = msg[1];
+            if(synth.notNil, { synth.set(\burstOn, msg[1]) });
+        });
+
+        this.addCommand(\burstOff, "i", { arg msg;
+            pBurstOff = msg[1];
+            if(synth.notNil, { synth.set(\burstOff, msg[1]) });
+        });
+
+        this.addCommand(\useBurst, "i", { arg msg;
+            pUseBurst = msg[1];
+            if(synth.notNil, { synth.set(\useBurst, msg[1]) });
         });
 
         // No initial synth — first noteOn creates it.
