@@ -189,6 +189,10 @@ function init()
   params:add_number("formant_count", "formant count", 1, 3, 1)
   params:set_action("formant_count", function(v)
     engine.formantCount(v)
+    -- Warn about CPU usage with poly + multi-formant
+    if v > 1 and params:get("poly_mode") == 2 then
+      print("WARNING: Multi-formant with poly mode may exceed norns CPU capacity")
+    end
   end)
 
   params:add_control("formant2_hz", "formant 2 hz",
@@ -389,6 +393,10 @@ function init()
   params:add_option("poly_mode", "mode", {"mono", "poly (4 voices)"}, 1)
   params:set_action("poly_mode", function(v)
     engine.polyMode(v - 1)
+    -- Warn about CPU usage with poly + multi-formant
+    if v == 2 and params:get("formant_count") > 1 then
+      print("WARNING: Poly mode with multi-formant may exceed norns CPU capacity")
+    end
   end)
 
   params:add_control("glide", "glide time",

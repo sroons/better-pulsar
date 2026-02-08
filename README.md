@@ -4,7 +4,7 @@ A pulsar synthesis instrument for monome norns.
 
 ## Overview
 
-better-pulsar is a monophonic synthesizer that implements pulsar synthesis, a technique developed by Curtis Roads for generating complex, evolving timbres from simple waveforms. The instrument is designed for real-time performance with full MIDI control.
+better-pulsar is a polyphonic synthesizer that implements pulsar synthesis, a technique developed by Curtis Roads for generating complex, evolving timbres from simple waveforms. The instrument is designed for real-time performance with full MIDI control, featuring multiple formants, LFO modulation, sample-based pulsarets, and time-scale bridging gestures.
 
 ## What is Pulsar Synthesis?
 
@@ -22,13 +22,26 @@ When the fundamental frequency drops below 20 Hz, individual pulses become audib
 
 ## Features
 
+### Sound Design
 - **10 pulsaret waveforms** with smooth morphing between shapes
 - **5 window functions** with smooth morphing between envelopes
+- **Multiple formants** (1-3) with independent panning for rich spatial textures
+- **Sample-based pulsarets** - load any audio file as the pulsaret waveform
 - **Formant frequency control** independent of fundamental pitch
 - **Manual duty cycle mode** for direct pulse width control
-- **Pulse masking** for rhythmic patterns and texture
+
+### Modulation
+- **4 LFOs** for formant, duty cycle, masking, and pan
+- **Stochastic masking** - random pulse omission for texture
+- **Burst masking** - deterministic on/off patterns for rhythmic effects
+- **Time-scale bridging** - sweep from infrasonic pulses to audio-rate pitch
+
+### Performance
+- **4-voice polyphony** with oldest-voice stealing
+- **Portamento/glide** with legato mode
+- **Built-in reverb** via norns audio system
 - **Full MIDI control** with configurable CC mappings
-- **Demo mode** with random sequence generation
+- **Demo mode** with clock-synced random sequences
 - **3-page UI** with visual waveform display
 
 ## Pulsaret Waveforms
@@ -123,13 +136,50 @@ When the fundamental frequency drops below 20 Hz, individual pulses become audib
 - **midi device** (1-16): MIDI input device slot
 - **midi channel** (1-16): MIDI input channel
 
+### Multi-Formant
+- **formant count** (1-3): Number of active formants
+- **formant 2 hz** (20-4000): Second formant frequency
+- **formant 3 hz** (20-4000): Third formant frequency
+- **pan 2** (-1 to 1): Second formant stereo position
+- **pan 3** (-1 to 1): Third formant stereo position
+
+### Sample Pulsaret
+- **use sample**: Toggle sample mode on/off
+- **sample file**: Load audio file as pulsaret
+- **sample rate** (0.25-4x): Sample playback rate
+
 ### Demo Mode
-- **demo mode**: Off/on
+- **demo mode**: Off/on (clock-synced)
 - **scale**: Scale selection (all musicutil scales)
-- **tempo** (40-240 BPM): Sequence tempo
+- **tempo** (40-240 BPM): Sequence tempo (sets norns clock)
 - **root note** (36-72): Scale root
 - **sequence length** (1-64): Number of steps
 - **regenerate sequence**: Create new random sequence
+
+### Time-Scale Bridge
+- **start hz** (0.5-20): Bridge start frequency
+- **end hz** (20-500): Bridge end frequency
+- **duration** (0.5-30s): Sweep duration
+- **curve**: Linear, exponential, or logarithmic
+- **direction**: Up (rhythm→pitch) or down (pitch→rhythm)
+- **trigger bridge**: Start the frequency sweep
+
+### LFO Modulation
+Each LFO has enable, rate (0.01-10 Hz), and depth (0-1) controls:
+- **formant lfo**: Modulates formant frequency ±50%
+- **duty lfo**: Modulates duty cycle
+- **masking lfo**: Modulates pulse omission
+- **pan lfo**: Auto-pan across stereo field
+
+### Polyphony
+- **mode**: Mono or poly (4 voices)
+- **glide time** (0-2s): Portamento between notes
+
+### Reverb
+- **reverb mix** (0-1): Engine-to-reverb send level
+- **reverb return** (0-1): Reverb return level
+- **reverb damp** (0-1): High frequency damping
+- **reverb size** (0.5-5s): Reverb decay time
 
 ## Installation
 
@@ -143,6 +193,25 @@ When the fundamental frequency drops below 20 Hz, individual pulses become audib
 scp -r better-pulsar we@norns.local:/home/we/dust/code/
 ssh we@norns.local "systemctl restart norns-sclang"
 ```
+
+## Performance Notes
+
+### CPU Usage
+The norns shield (RPi CM3+) has limited CPU. Guidelines:
+- **Single formant**: Light CPU, safe for polyphony
+- **2 formants**: ~2x CPU, limit to 2-3 poly voices
+- **3 formants**: ~3x CPU, recommend mono mode
+- **Poly + multi-formant**: May cause audio dropouts
+
+A warning is printed when enabling combinations that may stress CPU.
+
+### Glide/Legato
+Glide only works when **glide time > 0** and playing legato (overlapping notes). With glide=0, each note creates a fresh synth (standard behavior).
+
+### Sample Mode
+- Short samples (< 1 second) work best
+- Loading large samples may cause brief audio glitches
+- Sample is read at pulsaret rate, creating granular/filtering effects
 
 ## Requirements
 
