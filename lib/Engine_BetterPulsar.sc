@@ -608,33 +608,39 @@ Engine_BetterPulsar : CroneEngine {
                 { true } { \betterPulsar };
 
             if(pPolyMode == 0, {
-                // Mono mode
-                if(synth.notNil, { synth.set(\gate, 0) });
-                synth = Synth(synthName, [
-                    \out, context.out_b,
-                    \hz, note.midicps,
-                    \formantHz, pFormantHz,
-                    \formant2Hz, pFormant2Hz,
-                    \formant3Hz, pFormant3Hz,
-                    \amp, vel / 127 * 0.7,
-                    \pan, pPan,
-                    \pan2, pPan2,
-                    \pan3, pPan3,
-                    \formantCount, pFormantCount,
-                    \pulsaret, pPulsaret,
-                    \window, pWindow,
-                    \dutyCycle, pDutyCycle,
-                    \useDutyCycle, pUseDutyCycle,
-                    \masking, pMasking,
-                    \attack, pAttack,
-                    \release, pRelease,
-                    \sampleRate, pSampleRate,
-                    \burstOn, pBurstOn,
-                    \burstOff, pBurstOff,
-                    \useBurst, pUseBurst,
-                    \glide, pGlide,
-                    \gate, 1
-                ], context.xg);
+                // Mono mode with legato for glide support
+                if(synth.notNil && (pGlide > 0), {
+                    // Legato: update pitch on existing synth (enables glide)
+                    synth.set(\hz, note.midicps, \amp, vel / 127 * 0.7);
+                }, {
+                    // No glide or no existing synth: create new
+                    if(synth.notNil, { synth.set(\gate, 0) });
+                    synth = Synth(synthName, [
+                        \out, context.out_b,
+                        \hz, note.midicps,
+                        \formantHz, pFormantHz,
+                        \formant2Hz, pFormant2Hz,
+                        \formant3Hz, pFormant3Hz,
+                        \amp, vel / 127 * 0.7,
+                        \pan, pPan,
+                        \pan2, pPan2,
+                        \pan3, pPan3,
+                        \formantCount, pFormantCount,
+                        \pulsaret, pPulsaret,
+                        \window, pWindow,
+                        \dutyCycle, pDutyCycle,
+                        \useDutyCycle, pUseDutyCycle,
+                        \masking, pMasking,
+                        \attack, pAttack,
+                        \release, pRelease,
+                        \sampleRate, pSampleRate,
+                        \burstOn, pBurstOn,
+                        \burstOff, pBurstOff,
+                        \useBurst, pUseBurst,
+                        \glide, pGlide,
+                        \gate, 1
+                    ], context.xg);
+                });
             }, {
                 // Poly mode - find free voice or steal oldest
                 voiceIdx = nil;
