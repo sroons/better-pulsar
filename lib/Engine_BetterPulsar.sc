@@ -572,7 +572,7 @@ Engine_BetterPulsar : CroneEngine {
                 // Mono mode with legato for glide support
                 if(synth.notNil && (pGlide > 0), {
                     // Legato: update pitch on existing synth (enables glide)
-                    synth.set(\hz, note.midicps, \amp, vel / 127 * 0.7);
+                    synth.set(\hz, note.midicps, \amp, vel / 127 * 0.4);
                 }, {
                     // No glide or no existing synth: create new
                     if(synth.notNil, { synth.set(\gate, 0) });
@@ -582,7 +582,7 @@ Engine_BetterPulsar : CroneEngine {
                         \formantHz, pFormantHz,
                         \formant2Hz, pFormant2Hz,
                         \formant3Hz, pFormant3Hz,
-                        \amp, vel / 127 * 0.7,
+                        \amp, vel / 127 * 0.4,
                         \pan, pPan,
                         \pan2, pPan2,
                         \pan3, pPan3,
@@ -640,7 +640,7 @@ Engine_BetterPulsar : CroneEngine {
                     \formantHz, pFormantHz,
                     \formant2Hz, pFormant2Hz,
                     \formant3Hz, pFormant3Hz,
-                    \amp, vel / 127 * 0.7 / numVoices.sqrt,  // Scale amplitude for polyphony
+                    \amp, vel / 127 * 0.4 / numVoices.sqrt,  // Scale amplitude for polyphony
                     \pan, pPan,
                     \pan2, pPan2,
                     \pan3, pPan3,
