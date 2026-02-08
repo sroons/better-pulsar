@@ -51,6 +51,11 @@ IMPLEMENTED AS PART OF TASK 2. The sample pulsaret feature (use_sample toggle, s
 ## 7. LFO modulation
 Route LFOs to formant frequency, duty cycle, masking, and pan for evolving textures. Norns has a built-in `lfo` library. Adds movement and life to sustained tones without manual CC tweaking.
 
+###IMPLEMENTATION DETAILS:
+Added four independent LFOs using norns' built-in lfo library: formant (modulates frequency 0.5x-2x around base value), duty cycle (modulates pulse width), masking (modulates omission probability), and pan (auto-pans across stereo field). Each LFO has enable/disable toggle, rate control (0.01-10 Hz), and depth control (0-1). All use sine waveform for smooth modulation. LFOs continue running independent of note state, allowing evolving textures even during sustained notes. Parameters organized under "lfo modulation" separator.
+
+**Performance Impact:** LOW. LFOs run in Lua at norns' default update rate (~60Hz) and send OSC messages to the engine. No additional DSP processing on RPi4. Four simultaneous LFOs add negligible CPU load.
+
 ## 8. Reverb send
 Route output through norns' built-in reverb. Adds spatial depth and makes pulsar tones sit in a space. Simple to implement, significant perceptual improvement especially for sparse/rhythmic pulsar trains.
 
