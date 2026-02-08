@@ -6,12 +6,15 @@ Engine_BetterPulsar : CroneEngine {
     var <synth;
     var <pulsaretBufs;
     var <windowBufs;
+    var <sampleBuf;  // Buffer for loaded sample pulsaret
 
     // Stored parameter state (persists across noteOn/noteOff)
     var pFormantHz, pAmp, pPan, pPulsaret, pWindow;
     var pDutyCycle, pUseDutyCycle, pMasking, pAttack, pRelease;
     // Multi-formant parameters
     var pFormant2Hz, pFormant3Hz, pPan2, pPan3, pFormantCount;
+    // Sample convolution parameters
+    var pUseSample, pSampleRate;
 
     *new { arg context, doneCallback;
         ^super.new(context, doneCallback);
@@ -26,6 +29,9 @@ Engine_BetterPulsar : CroneEngine {
 
         // Pre-allocate buffers for window functions
         windowBufs = Array.fill(5, { Buffer.alloc(server, numSamples, 1) });
+
+        // Sample buffer for loaded pulsaret (up to 1 second at 48kHz)
+        sampleBuf = Buffer.alloc(server, 48000, 1);
 
         server.sync;
 
@@ -316,6 +322,64 @@ Engine_BetterPulsar : CroneEngine {
             Out.ar(out, sigOut);
         }).add;
 
+        // Sample-based pulsar synth (Roads Section 3.3)
+        // Uses loaded sample as pulsaret waveform
+        // At infrasonic rates: each pulse plays a copy of the sample
+        // At audio rates: sample is filtered through pulsar train's comb spectrum
+        SynthDef(\betterPulsarSample, {
+            arg out = 0,
+                hz = 110,
+                formantHz = 440,
+                amp = 0.5,
+                pan = 0,
+                gate = 1,
+                window = 1,
+                dutyCycle = 0.5,
+                useDutyCycle = 0,
+                masking = 0,
+                attack = 0.001,
+                release = 0.1,
+                sampleRate = 1.0;  // Playback rate multiplier
+
+            var phase, trig, actualDuty, inPulsaret, pulsaretPhase;
+            var sampleSig, windowSig, windowSig1, windowSig2;
+            var windowIdx1, windowIdx2, windowMix, windowBufNum1, windowBufNum2;
+            var mask, env, sig;
+            var sampleFrames, samplePhase;
+
+            actualDuty = Select.kr(useDutyCycle, [
+                (hz / formantHz).clip(0.01, 1.0),
+                dutyCycle.clip(0.01, 1.0)
+            ]);
+
+            phase = Phasor.ar(0, hz * SampleDur.ir, 0, 1);
+            trig = Trig1.ar(phase < 0.01, SampleDur.ir);
+            mask = Lag.ar(TRand.ar(0, 1, trig) > masking, 0.001);
+            inPulsaret = phase < actualDuty;
+            pulsaretPhase = (phase / actualDuty).clip(0, 0.999);
+
+            // Read from sample buffer
+            sampleFrames = BufFrames.kr(sampleBuf.bufnum);
+            samplePhase = pulsaretPhase * sampleFrames * sampleRate;
+            sampleSig = BufRd.ar(1, sampleBuf.bufnum, samplePhase.clip(0, sampleFrames - 1), 0, 4);
+
+            // Window morphing
+            windowIdx1 = window.floor.clip(0, 4);
+            windowIdx2 = (windowIdx1 + 1).clip(0, 4);
+            windowMix = window.frac;
+            windowBufNum1 = Select.kr(windowIdx1, windowBufs.collect(_.bufnum));
+            windowBufNum2 = Select.kr(windowIdx2, windowBufs.collect(_.bufnum));
+            windowSig1 = BufRd.ar(1, windowBufNum1, pulsaretPhase * BufFrames.kr(windowBufNum1), 1, 4);
+            windowSig2 = BufRd.ar(1, windowBufNum2, pulsaretPhase * BufFrames.kr(windowBufNum2), 1, 4);
+            windowSig = LinXFade2.ar(windowSig1, windowSig2, windowMix * 2 - 1);
+
+            sig = sampleSig * windowSig * inPulsaret * mask;
+            env = EnvGen.ar(Env.asr(attack, 1, release), gate, doneAction: 2);
+            sig = LeakDC.ar(sig * env * amp).tanh;
+
+            Out.ar(out, Pan2.ar(sig, pan));
+        }).add;
+
         // Simpler, more efficient pulsar synth for when CPU is constrained
         SynthDef(\betterPulsarLite, {
             arg out = 0,
@@ -373,12 +437,20 @@ Engine_BetterPulsar : CroneEngine {
         pPan2 = -0.5;
         pPan3 = 0.5;
         pFormantCount = 1;
+        // Sample defaults
+        pUseSample = 0;
+        pSampleRate = 1.0;
 
         // Commands
         this.addCommand(\noteOn, "ff", { arg msg;
             var note = msg[1];
             var vel = msg[2];
-            var synthName = if(pFormantCount > 1, { \betterPulsarMulti }, { \betterPulsar });
+            var synthName;
+            // Select synth based on mode
+            synthName = case
+                { pUseSample > 0 } { \betterPulsarSample }
+                { pFormantCount > 1 } { \betterPulsarMulti }
+                { true } { \betterPulsar };
             if(synth.notNil, { synth.set(\gate, 0) });
             synth = Synth(synthName, [
                 \out, context.out_b,
@@ -398,6 +470,7 @@ Engine_BetterPulsar : CroneEngine {
                 \masking, pMasking,
                 \attack, pAttack,
                 \release, pRelease,
+                \sampleRate, pSampleRate,
                 \gate, 1
             ], context.xg);
         });
@@ -486,6 +559,27 @@ Engine_BetterPulsar : CroneEngine {
             // Note: changing formant count requires note retrigger to switch synth
         });
 
+        // Sample commands
+        this.addCommand(\loadSample, "s", { arg msg;
+            var path = msg[1].asString;
+            Buffer.read(context.server, path, action: { |buf|
+                // Copy loaded buffer data to our pre-allocated sample buffer
+                sampleBuf.free;
+                sampleBuf = buf;
+                ("Loaded sample: " ++ path).postln;
+            });
+        });
+
+        this.addCommand(\useSample, "i", { arg msg;
+            pUseSample = msg[1];
+            // Note: changing mode requires note retrigger to switch synth
+        });
+
+        this.addCommand(\sampleRate, "f", { arg msg;
+            pSampleRate = msg[1];
+            if(synth.notNil, { synth.set(\sampleRate, msg[1]) });
+        });
+
         // No initial synth — first noteOn creates it.
         // params:bang() in Lua will store values here via commands above.
         synth = nil;
@@ -495,5 +589,6 @@ Engine_BetterPulsar : CroneEngine {
         if(synth.notNil, { synth.free });
         pulsaretBufs.do({ |buf| buf.free });
         windowBufs.do({ |buf| buf.free });
+        if(sampleBuf.notNil, { sampleBuf.free });
     }
 }

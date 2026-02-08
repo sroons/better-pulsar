@@ -175,6 +175,27 @@ function init()
     engine.pan3(v)
   end)
 
+  -- Sample convolution parameters
+  params:add_separator("sample pulsaret")
+
+  params:add_option("use_sample", "use sample", {"off", "on"}, 1)
+  params:set_action("use_sample", function(v)
+    engine.useSample(v - 1)
+  end)
+
+  params:add_file("sample_file", "sample file")
+  params:set_action("sample_file", function(v)
+    if v ~= "" and v ~= nil then
+      engine.loadSample(v)
+    end
+  end)
+
+  params:add_control("sample_rate", "sample rate",
+    controlspec.new(0.25, 4.0, "exp", 0, 1.0, "x"))
+  params:set_action("sample_rate", function(v)
+    engine.sampleRate(v)
+  end)
+
   params:add_separator("midi")
 
   params:add_number("midi_device", "midi device", 1, 16, 3)
