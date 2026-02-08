@@ -24,22 +24,22 @@
 --   K2: next page  K3: toggle demo
 --
 -- Default MIDI CC mappings:
---   CC 1:  formant hz
---   CC 2:  duty cycle
---   CC 3:  amplitude
---   CC 4:  pan
---   CC 5:  masking
---   CC 6:  pulsaret
---   CC 7:  window
---   CC 8:  attack
---   CC 9:  release
---   CC 10: formant 2 hz
---   CC 11: formant 3 hz
---   CC 12: pan 2
---   CC 13: pan 3
---   CC 14: sample rate
---   CC 15: glide
---   CC 16: burst on
+--   CC 32: formant hz
+--   CC 33: duty cycle
+--   CC 34: amplitude
+--   CC 35: pan
+--   CC 36: masking
+--   CC 37: pulsaret
+--   CC 38: window
+--   CC 39: attack
+--   CC 40: release
+--   CC 41: formant 2 hz
+--   CC 42: formant 3 hz
+--   CC 43: pan 2
+--   CC 44: pan 3
+--   CC 45: sample rate
+--   CC 46: glide
+--   CC 47: burst on
 
 engine.name = "BetterPulsar"
 
@@ -153,7 +153,7 @@ for i = 1, #musicutil.SCALES do
 end
 
 -- MIDI CC mappings (adjust to your controller)
--- Default: CC 1-16 consecutively
+-- Default: CC 32-47 consecutively
 local CC = {
   formant     = 32,
   duty_cycle  = 33,
