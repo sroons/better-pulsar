@@ -74,3 +74,8 @@ Added 4-voice polyphony with voice allocation in the SuperCollider engine. Voice
 
 ## 10. Portamento/glide
 Smooth pitch transitions between MIDI notes instead of instant jumps. Just a `Lag` on `hz` in the SynthDef with a controllable glide time. Subtle but expressive for melodic playing.
+
+###IMPLEMENTATION DETAILS:
+Added `glide` argument to all three SynthDefs (betterPulsar, betterPulsarMulti, betterPulsarSample) with a `Lag.kr` applied to the hz parameter. The lag time is controllable from 0-2 seconds via the Lua params. The glide is also applied to the formant duty cycle calculation so the entire pitch relationship slides smoothly. A `glide` engine command updates both the current synth and all active polyphonic voices. The glide parameter defaults to 0 (instant pitch changes) for backwards compatibility.
+
+**Performance Impact:** MINIMAL. `Lag.kr` is an extremely lightweight UGen - just a simple one-pole filter running at control rate. No measurable CPU overhead on RPi4.

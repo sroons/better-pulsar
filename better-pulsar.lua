@@ -372,6 +372,12 @@ function init()
     engine.polyMode(v - 1)
   end)
 
+  params:add_control("glide", "glide time",
+    controlspec.new(0, 2.0, "lin", 0.01, 0, "s"))
+  params:set_action("glide", function(v)
+    engine.glide(v)
+  end)
+
   -- Reverb parameters (uses norns built-in reverb)
   params:add_separator("reverb")
 
