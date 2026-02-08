@@ -11,6 +11,11 @@ Added new `betterPulsarMulti` SynthDef that runs up to 3 parallel formant genera
 ## 2. Convolution with samples
 Convolve pulsar trains with recorded sounds (Roads' Section 3.3). At infrasonic rates, each pulsar is replaced by a copy of the sample, creating rhythmic patterns. At audio rates, the sample is filtered through the pulsar train's comb-like spectrum. Two effects: filtering imposed by the time-varying pulsar train, and overlapping effects from short fundamental periods.
 
+###IMPLEMENTATION DETAILS:
+Added `betterPulsarSample` SynthDef that uses a loaded audio sample as the pulsaret waveform instead of the built-in wavetables. The sample is read at a rate determined by the duty cycle, so the formant frequency controls how much of the sample plays per pulse. At infrasonic fundamental frequencies, each pulse is an audible grain of the sample; at audio rates, the pulsar train creates comb-filtering effects. The `sample_rate` parameter (0.25x-4x) allows pitch-shifting the sample. A file picker in params allows loading any audio file from the norns filesystem. The `use_sample` toggle switches between sample and wavetable modes.
+
+**Performance Impact:** MODERATE. Sample buffer reads are computationally similar to wavetable reads. Primary concern is memory - samples up to 1 second at 48kHz are supported. Recommend using short samples for best results on RPi4. Loading very large samples may cause brief audio glitches.
+
 ## 3. Wavetable morphing
 Crossfade between pulsaret waveforms continuously rather than switching discretely. Map a CC to blend smoothly between e.g. sine and sinc, or triangle and sine x3. Enables timbral animation that's impossible with discrete waveform switching.
 
