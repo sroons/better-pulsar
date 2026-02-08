@@ -19,6 +19,11 @@ Added `betterPulsarSample` SynthDef that uses a loaded audio sample as the pulsa
 ## 3. Wavetable morphing
 Crossfade between pulsaret waveforms continuously rather than switching discretely. Map a CC to blend smoothly between e.g. sine and sinc, or triangle and sine x3. Enables timbral animation that's impossible with discrete waveform switching.
 
+###IMPLEMENTATION DETAILS:
+ALREADY IMPLEMENTED prior to task list creation. The pulsaret parameter is continuous (0.0-9.0) with crossfading between adjacent waveforms using LinXFade2. Similarly, the window parameter (0.0-4.0) morphs between adjacent window functions. MIDI CC14 sweeps through all pulsaret waveforms smoothly, CC15 sweeps through windows. The UI displays morphing state (e.g., "sine>sinx" when between sine and sinc waveforms).
+
+**Performance Impact:** LOW. Crossfading requires reading from two buffers instead of one and a simple mix operation - negligible overhead on RPi4.
+
 ## 4. Time-scale bridging gestures
 Automated envelopes that sweep fp from infrasonic (<20 Hz) up into audio rate, so a rhythm accelerates into a pitched tone in a single gesture. This is pulsar synthesis's defining trick — revealing the continuum between rhythm and pitch that is normally hidden.
 
