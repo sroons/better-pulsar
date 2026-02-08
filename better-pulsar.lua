@@ -483,7 +483,7 @@ function init()
   params:add_control("reverb_return", "reverb return",
     controlspec.new(0, 1, "lin", 0.01, 0.5, ""))
   params:set_action("reverb_return", function(v)
-    audio.rev_return_level(v)
+    audio.level_rev(v)
   end)
 
   params:add_control("reverb_damp", "reverb damp",
