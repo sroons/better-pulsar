@@ -570,11 +570,14 @@ Engine_BetterPulsar : CroneEngine {
 
             if(pPolyMode == 0, {
                 // Mono mode with legato for glide support
+                ("noteOn: synth=" ++ synth ++ " pGlide=" ++ pGlide).postln;
                 if(synth.notNil && (pGlide > 0), {
                     // Legato: update pitch on existing synth (enables glide)
+                    ("LEGATO: sliding to " ++ note).postln;
                     synth.set(\hz, note.midicps, \amp, vel / 127 * 0.7);
                 }, {
                     // No glide or no existing synth: create new
+                    ("NEW SYNTH for note " ++ note).postln;
                     if(synth.notNil, { synth.set(\gate, 0) });
                     synth = Synth(synthName, [
                         \out, context.out_b,
