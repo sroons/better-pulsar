@@ -59,6 +59,11 @@ Added four independent LFOs using norns' built-in lfo library: formant (modulate
 ## 8. Reverb send
 Route output through norns' built-in reverb. Adds spatial depth and makes pulsar tones sit in a space. Simple to implement, significant perceptual improvement especially for sparse/rhythmic pulsar trains.
 
+###IMPLEMENTATION DETAILS:
+Exposed norns' built-in reverb controls through script parameters: reverb mix (dry/wet balance), reverb return (return level from reverb bus), reverb damp (high frequency damping), and reverb size (reverb decay time 0.5-5 seconds). Uses norns audio.level_rev(), audio.rev_return_level(), audio.rev_damp(), and audio.rev_time() functions. Default settings provide subtle ambience; increase mix and size for more dramatic spatial effects.
+
+**Performance Impact:** NONE additional. Norns' reverb runs on a dedicated audio bus regardless of script settings - this simply exposes the controls. The built-in reverb is already optimized for RPi4.
+
 ## 9. Polyphony
 Multiple simultaneous voices with voice allocation. Enables chords and overlapping notes. Requires voice group management in the SC engine and note stealing/allocation logic in Lua.
 
