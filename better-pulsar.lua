@@ -143,6 +143,38 @@ function init()
     engine.amp(v)
   end)
 
+  -- Multi-formant parameters
+  params:add_separator("multi-formant")
+
+  params:add_number("formant_count", "formant count", 1, 3, 1)
+  params:set_action("formant_count", function(v)
+    engine.formantCount(v)
+  end)
+
+  params:add_control("formant2_hz", "formant 2 hz",
+    controlspec.new(20, 4000, "exp", 0, 660, "hz"))
+  params:set_action("formant2_hz", function(v)
+    engine.formant2Hz(v)
+  end)
+
+  params:add_control("formant3_hz", "formant 3 hz",
+    controlspec.new(20, 4000, "exp", 0, 880, "hz"))
+  params:set_action("formant3_hz", function(v)
+    engine.formant3Hz(v)
+  end)
+
+  params:add_control("pan2", "pan 2",
+    controlspec.new(-1.0, 1.0, "lin", 0.01, -0.5, ""))
+  params:set_action("pan2", function(v)
+    engine.pan2(v)
+  end)
+
+  params:add_control("pan3", "pan 3",
+    controlspec.new(-1.0, 1.0, "lin", 0.01, 0.5, ""))
+  params:set_action("pan3", function(v)
+    engine.pan3(v)
+  end)
+
   params:add_separator("midi")
 
   params:add_number("midi_device", "midi device", 1, 16, 3)
