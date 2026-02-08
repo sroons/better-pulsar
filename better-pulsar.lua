@@ -345,8 +345,8 @@ function init()
 
   params:add_number("demo_tempo", "tempo", 40, 240, 120)
   params:set_action("demo_tempo", function(v)
-    -- Always update clock tempo
-    clock.tempo = v
+    -- Update norns system clock tempo
+    params:set("clock_tempo", v)
   end)
 
   params:add_number("demo_root", "root note", 36, 72, 48)
@@ -980,7 +980,7 @@ function start_demo()
   stop_demo()
   generate_sequence()
   -- Set clock tempo from demo tempo
-  clock.tempo = params:get("demo_tempo")
+  params:set("clock_tempo", params:get("demo_tempo"))
   demo_clock = clock.run(demo_loop)
 end
 
